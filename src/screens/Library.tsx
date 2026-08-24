@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { deletePiece, listPieces } from '../lib/db'
 import { ACCEPTED_EXTENSIONS, importFile, type ImportStage } from '../lib/pieces'
+import { KEYBOARD_RANGES, loadRange, saveRange } from '../lib/range'
 import { addStarterPiece, STARTER_PIECES, type StarterPiece } from '../lib/starter'
 import type { PieceRecord } from '../types'
 
@@ -11,6 +12,7 @@ export default function Library() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [busy, setBusy] = useState<ImportStage | null>(null)
   const [adding, setAdding] = useState<string | null>(null)
+  const [range, setRange] = useState(loadRange)
   const fileInput = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -152,6 +154,30 @@ export default function Library() {
             </ul>
           </section>
         )}
+
+        <section className="settings">
+          <h2 className="label">Your keyboard</h2>
+          <p className="dim settings-intro">
+            Pieces are fitted to this. A piece that only sits too low is shifted by whole
+            octaves; anything that still will not reach is folded in note by note, so no step
+            can ever ask for a key you do not have.
+          </p>
+          <select
+            className="settings-select"
+            value={range.keys}
+            onChange={(event) => {
+              const keys = Number(event.target.value)
+              saveRange(keys)
+              setRange(KEYBOARD_RANGES.find((option) => option.keys === keys) ?? range)
+            }}
+          >
+            {KEYBOARD_RANGES.map((option) => (
+              <option key={option.keys} value={option.keys}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </section>
       </div>
     </div>
   )

@@ -11,6 +11,8 @@ export type Step = {
    * Used only for playback — the matching engine has no notion of time.
    */
   timeSeconds?: number
+  /** Notes moved by an octave on their own to reach a shorter keyboard. */
+  folded?: number[]
 }
 
 export type Piece = {

@@ -170,6 +170,33 @@ library precisely to avoid the licensing problem, which makes this the third
 deliberate departure, and the reason it is limited to material that is genuinely
 free.
 
+## Fitting a piece to your keyboard
+
+A 61-key instrument starts at C2, and plenty of piano writing goes below it. The
+player waits for the exact note, so a piece reaching under the lowest key does
+not merely sound wrong — it stops dead with no way past. **Your keyboard** at the
+bottom of the library sets the range; 88 keys is the default.
+
+Two things happen, in that order:
+
+1. **The whole piece is shifted by whole octaves** if that is enough on its own.
+   Every interval stays intact, and it is exactly what the transpose button on the
+   instrument does. He's A Pirate has 170 notes below C2 on a 61-key keyboard;
+   shifted up one octave it has none, and plays start to finish.
+2. **Whatever still will not reach is folded in, note by note.** In the Hall of
+   the Mountain King spans 76 semitones — wider than 61 keys, so no shift can
+   save it. 187 notes get folded an octave inward. That does distort the writing,
+   and it is still better than a step that can never be completed.
+
+Folded notes are marked in the readout, the fit is stated under the keyboard
+("61 keys · shifted up 1 octave"), and keys your instrument does not have are
+greyed out on the diagram. The notation still shows the original pitches, because
+it is the score — when a piece has been shifted you are playing an octave off the
+page, deliberately.
+
+Matching is still octave-exact in the sense §6 means: it is the target that moved
+to reach your keyboard, not the tolerance that widened.
+
 ## Chord names
 
 When the notes under the cursor spell a chord, its name appears beside them in
@@ -279,7 +306,7 @@ public.
 ## Verification
 
 ```sh
-npm run check                        # dev server + headless browser, 75 checks
+npm run check                        # dev server + headless browser, 83 checks
 npm run build && npm run check:share # share target and offline, 6 checks
 ```
 
@@ -310,7 +337,8 @@ sounding notes on a connected instrument, skip back landing on bar starts, a
 multipart share POST exactly as Android sends it, a bundled .mxl unzipping into
 notation, the screen wake lock surviving the page being hidden, a file
 named after its instrument falling back to its filename, chord naming across
-inversions, doublings and non-chords, and loading and playing
+inversions, doublings and non-chords, a piece being shifted and folded onto a
+shorter keyboard, and loading and playing
 with the network cut.
 
 **Still needs the phone**, because nothing else can prove it:
@@ -370,6 +398,7 @@ src/
     playback.ts  the drift-free step scheduler and the speed control
     titles.ts    telling a piece's name from its instrument's
     chords.ts    naming the chord under the cursor
+    range.ts     fitting a piece to the keyboard you own
     wakelock.ts  keeping the screen on while the player is open
     steps.ts     where a skip back lands
     keys.ts      key geometry and the window, shared by keyboard and roll

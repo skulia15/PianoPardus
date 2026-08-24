@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import JumpControl from '../components/JumpControl'
 import Keyboard from '../components/Keyboard'
@@ -13,6 +13,7 @@ import { midiStatusMessage, useMidi } from '../lib/midi'
 import { parseMidiSteps } from '../lib/midifile'
 import { checkPitchMapping, readMusicXmlText } from '../lib/musicxml'
 import { noteName } from '../lib/notes'
+import { describeFit, fitStepsToRange, loadRange } from '../lib/range'
 import { gapMs, SPEEDS, usePlayback } from '../lib/playback'
 import { skipBackIndex } from '../lib/steps'
 import { useWakeLock } from '../lib/wakelock'
@@ -24,13 +25,19 @@ export default function Player() {
 
   const [record, setRecord] = useState<PieceRecord | null>(null)
   const [xml, setXml] = useState<string | null>(null)
-  const [steps, setSteps] = useState<Step[] | null>(null)
+  const [rawSteps, setRawSteps] = useState<Step[] | null>(null)
   const [warning, setWarning] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   // null means "whatever the piece was left set to".
   const [hideOverride, setHideOverride] = useState<boolean | null>(null)
   const [speed, setSpeed] = useState(1)
   const [echo, setEcho] = useState(true)
+
+  // Read once per visit: the setting lives on the library screen, and coming
+  // back here remounts this.
+  const range = useMemo(() => loadRange(), [])
+  const fit = useMemo(() => (rawSteps ? fitStepsToRange(rawSteps, range) : null), [rawSteps, range])
+  const steps = fit?.steps ?? null
 
   const matcher = useMatcher(steps)
 
@@ -69,7 +76,7 @@ export default function Player() {
   useEffect(() => {
     let cancelled = false
     setXml(null)
-    setSteps(null)
+    setRawSteps(null)
     setWarning(null)
     setError(null)
 
@@ -95,7 +102,7 @@ export default function Player() {
         } else {
           const parsed = await parseMidiSteps(found.blob)
           if (cancelled) return
-          setSteps(parsed)
+          setRawSteps(parsed)
           if (found.stepCount !== parsed.length) {
             void putPiece({ ...found, stepCount: parsed.length })
           }
@@ -114,7 +121,7 @@ export default function Player() {
 
   const onSteps = useCallback(
     (parsed: Step[]) => {
-      setSteps(parsed)
+      setRawSteps(parsed)
       if (xml) setWarning(checkPitchMapping(xml, parsed))
       // Keep the library's step count honest now that we know it.
       if (record && record.stepCount !== parsed.length) {
@@ -135,6 +142,7 @@ export default function Player() {
   windowRef.current = windowFor(step?.notes ?? [], windowRef.current)
 
   const chord = step ? chordName(step.notes) : null
+  const fitNote = fit ? describeFit(fit, range) : null
   const midiMessage = midiStatusMessage(midi.status)
   const engraved = record?.source === 'midi' && Boolean(record.notationXml)
   const notationHidden = hideOverride ?? record?.notationHidden ?? false
@@ -236,7 +244,16 @@ export default function Player() {
       <div className="readout">
         <span className="label">next</span>
         <span className="readout-notes">
-          {step ? step.notes.map(noteName).join(' · ') : steps ? 'done' : '…'}
+          {step
+            ? step.notes.map((note, index) => (
+                <span key={note} className={step.folded?.includes(note) ? 'folded' : undefined}>
+                  {index > 0 ? ' · ' : ''}
+                  {noteName(note)}
+                </span>
+              ))
+            : steps
+              ? 'done'
+              : '…'}
         </span>
         {chord && <span className="readout-chord">{chord}</span>}
         <span className="readout-errors dim">
@@ -245,6 +262,7 @@ export default function Player() {
       </div>
 
       <Keyboard
+        range={range}
         window={windowRef.current}
         expected={step?.notes ?? []}
         held={matcher.held}
@@ -295,8 +313,12 @@ export default function Player() {
         )}
       </div>
 
-      {midi.status === 'connected' && (
-        <div className="footnote dim">{midi.inputNames.join(', ')}</div>
+      {(fitNote || midi.status === 'connected') && (
+        <div className="footnote dim">
+          {[fitNote, midi.status === 'connected' ? midi.inputNames.join(', ') : null]
+            .filter(Boolean)
+            .join(' — ')}
+        </div>
       )}
     </div>
   )

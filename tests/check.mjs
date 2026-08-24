@@ -387,6 +387,50 @@ async function main() {
       (await page.locator('.piece-title').first().textContent()).trim(),
       'a fine test piece',
     )
+
+    // --- Fitting a piece to a shorter keyboard -----------------------------
+    const fitting = await page.evaluate(async () => {
+      const { fitStepsToRange, KEYBOARD_RANGES } = await import('/src/lib/range.ts')
+      const sixtyOne = KEYBOARD_RANGES.find((option) => option.keys === 61)
+      const step = (notes, index) => ({ index, notes })
+      const within = (result) =>
+        result.steps.every((s) => s.notes.every((n) => n >= sixtyOne.lowest && n <= sixtyOne.highest))
+
+      const tooLow = fitStepsToRange([step([26, 33], 0), step([28, 35], 1)], sixtyOne)
+      const tooWide = fitStepsToRange([step([23, 99], 0)], sixtyOne)
+      const alreadyFits = [step([60, 64, 67], 0)]
+      const untouched = fitStepsToRange(alreadyFits, sixtyOne)
+
+      return {
+        tooLow: { shift: tooLow.shift, folded: tooLow.folded, notes: tooLow.steps.map((s) => s.notes), within: within(tooLow) },
+        tooWide: { folded: tooWide.folded, within: within(tooWide) },
+        untouched: { shift: untouched.shift, folded: untouched.folded, same: untouched.steps === alreadyFits },
+      }
+    })
+
+    check('a piece that only sits too low is shifted, not folded', fitting.tooLow, {
+      shift: 12,
+      folded: 0,
+      notes: [[38, 45], [40, 47]],
+      within: true,
+    })
+    check('a piece wider than the keyboard folds what is left', fitting.tooWide.folded > 0, true)
+    check('and nothing is left outside the range either way', [fitting.tooLow.within, fitting.tooWide.within], [true, true])
+    check('a piece that already fits is left alone', fitting.untouched, { shift: 0, folded: 0, same: true })
+
+    // The same thing through the app: 37 keys is C3-C6, and Wide Test opens on C2.
+    await page.locator('.settings-select').selectOption('37')
+    await page.locator('.piece-open', { hasText: 'Wide Test' }).first().click()
+    await page.waitForFunction(() => document.querySelector('.readout-notes')?.textContent !== '…', null, { timeout: 30_000 })
+
+    check('the low note is folded up into reach', await readout(page), 'C3 · C4 · C6')
+    check('and marked as moved', await page.locator('.readout-notes .folded').count(), 1)
+    check('with the fit explained', (await page.locator('.footnote').textContent()).includes('37 keys'), true)
+    check('keys the instrument does not have are greyed out', (await page.locator('.key.outside').count()) > 0, true)
+
+    await page.locator('.header button[aria-label="Back to library"]').click()
+    await page.locator('.settings-select').waitFor()
+    await page.locator('.settings-select').selectOption('88')
   } finally {
     await browser.close()
     server.kill('SIGTERM')

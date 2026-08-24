@@ -4,6 +4,7 @@
 //
 //   node tests/playthrough.mjs path/to/piece.mid
 //   STOP_AT=112 SHOT=look.png node tests/playthrough.mjs path/to/piece.mid
+//   KEYBOARD=61 node tests/playthrough.mjs path/to/piece.mid
 import { chromium } from 'playwright'
 import { spawn } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
@@ -42,6 +43,15 @@ const server = await startServer()
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined })
 const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
 await page.addInitScript(readFileSync(here('./fake-midi.js'), 'utf8'))
+if (process.env.KEYBOARD) {
+  await page.addInitScript((keys) => {
+    try {
+      localStorage.setItem('pianopardus.keyboard', keys)
+    } catch {
+      // Storage refused; the default range applies.
+    }
+  }, process.env.KEYBOARD)
+}
 page.on('pageerror', (error) => console.log('PAGE ERROR:', error.message))
 
 await page.goto(`http://localhost:${PORT}`, { waitUntil: 'networkidle' })
@@ -53,6 +63,8 @@ await page.waitForFunction(() => document.querySelector('.readout-notes')?.textC
 console.log('title:      ', await page.locator('.header h1').textContent())
 console.log('steps:      ', await page.locator('.header .meta').textContent())
 console.log('first step: ', await page.locator('.readout-notes').textContent())
+const footnote = await page.locator('.footnote').count()
+if (footnote > 0) console.log('fit:        ', (await page.locator('.footnote').textContent()).trim())
 
 const report = await page.evaluate(async (limit) => {
   const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
@@ -107,7 +119,14 @@ const report = await page.evaluate(async (limit) => {
     for (const note of notes) window.__midi.noteOn(note)
     for (const note of notes) window.__midi.noteOff(note)
     played++
-    await frame()
+
+    // Wait for the step to actually change rather than assuming one frame is
+    // enough. Guessing replays the previous step's notes against the new one,
+    // which counts as errors and makes the accuracy this tool reports a lie.
+    for (let waited = 0; waited < 120; waited++) {
+      await frame()
+      if (document.querySelector('.readout-notes')?.textContent !== text) break
+    }
   }
 
   return { played, hiddenSteps, worstHidden, worstStep, resizes, widths, namedChords, chordSamples: [...chordSamples] }

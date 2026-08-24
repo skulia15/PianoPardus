@@ -8,9 +8,11 @@ import {
   type KeyPosition,
 } from '../lib/keys'
 import { noteName } from '../lib/notes'
+import type { KeyboardRange } from '../lib/range'
 
 export default function Keyboard({
   window: view,
+  range,
   expected,
   held,
   wrong,
@@ -19,6 +21,7 @@ export default function Keyboard({
   onRelease,
 }: {
   window: KeyboardWindow
+  range?: KeyboardRange
   expected: number[]
   held: Set<number>
   wrong: Set<number>
@@ -40,6 +43,8 @@ export default function Keyboard({
   const labelEveryC = octaves <= 3
 
   function stateFor(note: number): string {
+    // Drawn, but greyed: a key your instrument does not have.
+    if (range && (note < range.lowest || note > range.highest)) return 'outside'
     if (wrong.has(note)) return 'wrong'
     if (flash.has(note)) return 'correct'
     if (expectedSet.has(note)) return held.has(note) ? 'correct' : 'expected'
