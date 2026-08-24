@@ -11,6 +11,14 @@ export default defineConfig({
       devOptions: { enabled: false },
       injectRegister: 'auto',
       registerType: 'autoUpdate',
+      // A custom service worker, because the share target needs to intercept a
+      // POST — generateSW cannot express that.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
+      },
       manifest: {
         name: 'Keyway',
         short_name: 'Keyway',
@@ -26,6 +34,30 @@ export default defineConfig({
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
+        // Android matches on MIME type and on extension, and MIDI MIME types are
+        // inconsistent between apps — the extensions do most of the work here.
+        share_target: {
+          action: '/import',
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: {
+            files: [
+              {
+                name: 'file',
+                accept: [
+                  '.mid',
+                  '.midi',
+                  '.musicxml',
+                  '.xml',
+                  '.mxl',
+                  'audio/midi',
+                  'audio/x-midi',
+                  'application/vnd.recordare.musicxml+xml',
+                ],
+              },
+            ],
+          },
+        },
       },
     }),
   ],
