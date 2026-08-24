@@ -1,7 +1,9 @@
 import {
   keysIn,
   viewWidth,
+  MIDDLE_C,
   MIN_OCTAVES,
+  WHITE_WIDTH,
   WHITE_HEIGHT,
   BLACK_HEIGHT,
   type KeyboardWindow,
@@ -37,10 +39,15 @@ export default function Keyboard({
   const above = expected.filter((note) => note >= view.start + octaves * 12).length
 
   // The SVG scales to the container, so a wider window shrinks everything in it.
-  // Grow the octave labels to compensate, and past three octaves label middle C
-  // only — five illegible labels orient you worse than one legible one.
+  // Past three octaves the labels are too small to read, and the dot on middle C
+  // carries the orientation on its own by then.
   const labelSize = Math.min(8 * (octaves / MIN_OCTAVES), 15)
   const labelEveryC = octaves <= 3
+
+  // Grown against the window for the same reason the labels are, so the marker
+  // stays about the same size on screen however wide the keyboard gets. Capped
+  // so it still sits inside the key.
+  const markerRadius = WHITE_WIDTH * Math.min(0.22 * (octaves / MIN_OCTAVES), 0.36)
 
   function stateFor(note: number): string {
     // Drawn, but greyed: a key your instrument does not have.
@@ -78,14 +85,22 @@ export default function Keyboard({
         height={position.black ? BLACK_HEIGHT : WHITE_HEIGHT}
         rx={position.black ? 2 : 3}
       />
-      {!position.black && position.note % 12 === 0 && (labelEveryC || position.note === 60) && (
+      {!position.black && position.note % 12 === 0 && labelEveryC && (
         <text
           x={position.x + position.width / 2}
-          y={WHITE_HEIGHT - 6}
+          y={WHITE_HEIGHT - 5}
           style={{ fontSize: labelSize }}
         >
           {noteName(position.note)}
         </text>
+      )}
+      {position.note === MIDDLE_C && (
+        <circle
+          className="middle-c"
+          cx={position.x + position.width / 2}
+          cy={WHITE_HEIGHT - (labelEveryC ? 22 : 16)}
+          r={markerRadius}
+        />
       )}
     </g>
   )

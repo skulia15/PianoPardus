@@ -11,6 +11,9 @@ export const WHITE_OFFSETS = [0, 2, 4, 5, 7, 9, 11]
 /** Index of the white key each black key sits after, within an octave. */
 export const BLACK_AFTER_WHITE = [0, 1, 3, 4, 5]
 
+/** The one landmark every player navigates from. */
+export const MIDDLE_C = 60
+
 export const WHITE_WIDTH = 24
 export const WHITE_HEIGHT = 120
 export const BLACK_WIDTH = 13

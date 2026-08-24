@@ -136,6 +136,15 @@ The on-screen keys are tappable as well as MIDI-driven. That is not in the spec;
 it is there because it is the only way to exercise the matching engine without
 the keyboard plugged in, and it is what the automated checks use.
 
+### Finding middle C
+
+Middle C carries a dot, on the keyboard and as a faint column on the piano roll.
+Five octaves of identical keys on a phone give the eye nothing to hold on to, and
+the octave labels are unreadable once the window passes three octaves — so the
+labels stop there and the dot takes over. It grows as the window widens, staying
+about the same size on screen however many keys are shown, and it stays legible
+when the key underneath is lit blue or green.
+
 ### How wide the keyboard is
 
 Two octaves by default, windowed on the notes to play. A step spanning more than
@@ -331,7 +340,7 @@ public.
 ## Verification
 
 ```sh
-npm run check                        # dev server + headless browser, 91 checks
+npm run check                        # dev server + headless browser, 94 checks
 npm run build && npm run check:share # share target and offline, 6 checks
 ```
 
@@ -364,7 +373,8 @@ notation, the screen wake lock surviving the page being hidden, a file
 named after its instrument falling back to its filename, chord naming across
 inversions, doublings and non-chords, a piece being shifted and folded onto a
 shorter keyboard, the phone's voice producing sound at the right pitch, skipping a
-single step and it being reported separately from errors, and loading and playing
+single step and it being reported separately from errors, middle C being marked
+on the keyboard and the roll, and loading and playing
 with the network cut.
 
 **Still needs the phone**, because nothing else can prove it:

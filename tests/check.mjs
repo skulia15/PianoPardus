@@ -115,6 +115,7 @@ async function main() {
 
     check('one key highlighted for a single-note step', await page.locator('.key.expected').count(), 1)
     check('a single note is not given a chord name', await page.locator('.readout-chord').count(), 0)
+    check('middle C is marked on the keyboard', await page.locator('.key .middle-c').count(), 1)
 
     // --- Matching engine --------------------------------------------------
     await play(page, [61]) // C#4 against an expected C4
@@ -305,6 +306,7 @@ async function main() {
     await page.waitForFunction(() => document.querySelector('.roll-svg') !== null, null, { timeout: 10_000 })
     check('the roll replaces the notation when asked', await page.locator('.notation').count(), 0)
     check('the roll draws the current step', await page.locator('.roll-note.current').count(), 1)
+    check('and the roll marks middle C the same way', await page.locator('.roll-middle-c').count(), 1)
     check('the steps survive the switch', await readout(page), 'C4')
 
     await page.locator('.controls button', { hasText: 'Notation' }).click()
@@ -399,6 +401,18 @@ async function main() {
         overreach: real.filter((name) => looksLikePartName(name)),
       }
     })
+    check(
+      'the middle C marker is left out when it is off the keyboard window',
+      await page.evaluate(async () => {
+        const { positionOf, MIDDLE_C } = await import('/src/lib/keys.ts')
+        return [
+          positionOf(MIDDLE_C, { start: 48, octaves: 2 }) !== null,
+          positionOf(MIDDLE_C, { start: 24, octaves: 2 }) === null,
+        ]
+      }),
+      [true, true],
+    )
+
     check('instrument and part names are recognised as such', titles.missed, [])
     check('real titles containing an instrument word survive', titles.overreach, [])
 

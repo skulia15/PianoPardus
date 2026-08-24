@@ -491,3 +491,23 @@ code {
   padding: 12px 13px;
   min-height: 48px;
 }
+
+/* Middle C, the one landmark to navigate from ------------------------------ */
+
+.key .middle-c {
+  fill: #14161c;
+  stroke: rgba(255, 255, 255, 0.45);
+  stroke-width: 0.8;
+  pointer-events: none;
+}
+
+.key.expected .middle-c,
+.key.correct .middle-c,
+.key.wrong .middle-c {
+  fill: rgba(0, 0, 0, 0.65);
+  stroke: rgba(255, 255, 255, 0.6);
+}
+
+.key.outside .middle-c { fill: #3a3d47; stroke: none; }
+
+.roll-middle-c { fill: rgba(124, 140, 255, 0.13); }

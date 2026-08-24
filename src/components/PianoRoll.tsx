@@ -1,4 +1,4 @@
-import { keysIn, positionOf, viewWidth, type KeyboardWindow } from '../lib/keys'
+import { keysIn, MIDDLE_C, positionOf, viewWidth, type KeyboardWindow } from '../lib/keys'
 import type { Step } from '../types'
 
 const ROWS = 10
@@ -21,6 +21,7 @@ export default function PianoRoll({
 }) {
   const rows = steps.slice(from, from + ROWS)
   const { blacks } = keysIn(view)
+  const middleC = positionOf(MIDDLE_C, view)
 
   return (
     <div className="roll">
@@ -40,6 +41,17 @@ export default function PianoRoll({
             height={ROWS}
           />
         ))}
+
+        {/* The same landmark the keyboard below marks, so the two read together. */}
+        {middleC && (
+          <rect
+            className="roll-middle-c"
+            x={middleC.x}
+            y={0}
+            width={middleC.width}
+            height={ROWS}
+          />
+        )}
 
         {rows.map((step, row) =>
           step.notes.map((note) => {
