@@ -1,0 +1,36 @@
+export type PieceSource = 'musicxml' | 'midi'
+
+/** One vertical slice of the score: a single note, a chord, or both hands together. */
+export type Step = {
+  index: number
+  notes: number[] // MIDI note numbers, sorted, sounded together
+  measure?: number
+  osmdCursorIndex?: number // MusicXML only
+}
+
+export type Piece = {
+  id: string
+  title: string
+  source: PieceSource
+  steps: Step[]
+  rawFile: Blob
+}
+
+/** What actually lives in IndexedDB. Steps are rebuilt from the raw file on open. */
+export type PieceRecord = {
+  id: string
+  title: string
+  fileName: string
+  source: PieceSource
+  addedAt: number
+  stepCount: number
+  blob: Blob
+}
+
+/** A file handed over by the Android share sheet, waiting to be imported. */
+export type InboxRecord = {
+  id: string
+  fileName: string
+  blob: Blob
+  receivedAt: number
+}
