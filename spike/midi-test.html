@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Keyway — MIDI spike</title>
+<style>
+  :root {
+    --bg: #0e0f13;
+    --panel: #171a21;
+    --line: #262b36;
+    --text: #e7e9ee;
+    --dim: #8b93a5;
+    --on: #4ade80;
+    --off: #f87171;
+    --accent: #7c8cff;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  header { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+  h1 { margin: 0 0 2px; font-size: 18px; }
+  .sub { color: var(--dim); font-size: 13px; }
+  section { padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+  button {
+    font: inherit; font-weight: 600;
+    background: var(--accent); color: #0b0d12;
+    border: 0; border-radius: 10px;
+    padding: 14px 18px; min-height: 48px;
+    cursor: pointer;
+  }
+  button.secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  button:disabled { opacity: .5; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .status { font-size: 14px; }
+  .status div { padding: 2px 0; }
+  .ok { color: var(--on); }
+  .bad { color: var(--off); }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { padding: 8px 10px; background: var(--panel); border-radius: 8px; margin-bottom: 6px; font-size: 14px; }
+  li .id { color: var(--dim); font-size: 12px; word-break: break-all; }
+  .held { font-size: 22px; font-weight: 700; min-height: 30px; letter-spacing: .02em; }
+  .held .none { font-size: 14px; font-weight: 400; color: var(--dim); }
+  #logWrap { flex: 1; min-height: 160px; display: flex; flex-direction: column; padding-bottom: 0; border-bottom: 0; }
+  #log {
+    flex: 1; overflow-y: auto;
+    background: #0a0b0e; border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px; margin-bottom: 12px;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .noteon { color: var(--on); }
+  .noteoff { color: var(--dim); }
+  .other { color: var(--accent); }
+  .err { color: var(--off); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Keyway — MIDI spike</h1>
+  <div class="sub">Step 1: prove the keyboard is seen over USB-C.</div>
+</header>
+
+<section>
+  <h2>Environment</h2>
+  <div class="status" id="env"></div>
+</section>
+
+<section>
+  <h2>Access</h2>
+  <div class="row">
+    <button id="connect">Connect MIDI</button>
+    <button id="clear" class="secondary">Clear log</button>
+  </div>
+</section>
+
+<section>
+  <h2>Inputs</h2>
+  <ul id="inputs"><li class="id">Not requested yet.</li></ul>
+</section>
+
+<section>
+  <h2>Held notes</h2>
+  <div class="held" id="held"><span class="none">nothing held</span></div>
+</section>
+
+<section id="logWrap">
+  <h2>Event log</h2>
+  <div id="log"></div>
+</section>
+
+<script>
+  var NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+  // MIDI 60 => "C4". Scientific pitch notation: octave = floor(note / 12) - 1.
+  function noteName(note) {
+    return NAMES[note % 12] + (Math.floor(note / 12) - 1);
+  }
+
+  var logEl = document.getElementById("log");
+  var inputsEl = document.getElementById("inputs");
+  var heldEl = document.getElementById("held");
+  var envEl = document.getElementById("env");
+  var held = new Set();
+  var access = null;
+
+  function log(text, cls) {
+    var pinned = logEl.scrollTop + logEl.clientHeight >= logEl.scrollHeight - 24;
+    var line = document.createElement("div");
+    line.className = cls || "";
+    line.textContent = text;
+    logEl.appendChild(line);
+    while (logEl.childElementCount > 400) logEl.removeChild(logEl.firstChild);
+    if (pinned) logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function stamp() {
+    var d = new Date();
+    return d.toTimeString().slice(0, 8) + "." + String(d.getMilliseconds()).padStart(3, "0");
+  }
+
+  function showEnv() {
+    var secure = window.isSecureContext;
+    var supported = typeof navigator.requestMIDIAccess === "function";
+    envEl.innerHTML = "";
+    addEnv("secure context", secure, secure ? "yes — " + location.origin : "NO — Web MIDI will not work here");
+    addEnv("navigator.requestMIDIAccess", supported, supported ? "available" : "missing (Safari / iOS does not support Web MIDI)");
+    addEnv("user agent", true, navigator.userAgent);
+  }
+
+  function addEnv(label, good, value) {
+    var d = document.createElement("div");
+    d.innerHTML = "<span class='" + (good ? "ok" : "bad") + "'>" + (good ? "OK" : "!!") + "</span> " +
+      label + ": <span class='sub'>" + value + "</span>";
+    envEl.appendChild(d);
+  }
+
+  function renderInputs() {
+    inputsEl.innerHTML = "";
+    var count = 0;
+    access.inputs.forEach(function (input) {
+      count++;
+      var li = document.createElement("li");
+      li.innerHTML = "<strong>" + (input.name || "(unnamed)") + "</strong> — " + input.state + "/" + input.connection +
+        "<div class='id'>" + (input.manufacturer || "unknown maker") + " · id " + input.id + "</div>";
+      inputsEl.appendChild(li);
+    });
+    if (count === 0) {
+      var li = document.createElement("li");
+      li.className = "id";
+      li.textContent = "No MIDI inputs. Check the USB-C adapter and that the keyboard is powered.";
+      inputsEl.appendChild(li);
+    }
+  }
+
+  function renderHeld() {
+    if (held.size === 0) {
+      heldEl.innerHTML = "<span class='none'>nothing held</span>";
+      return;
+    }
+    var sorted = Array.from(held).sort(function (a, b) { return a - b; });
+    heldEl.textContent = sorted.map(function (n) { return noteName(n) + " (" + n + ")"; }).join("  ·  ");
+  }
+
+  function onMessage(event) {
+    var data = event.data;
+    var status = data[0] & 0xf0;
+    var channel = (data[0] & 0x0f) + 1;
+    var source = event.target.name || "?";
+
+    if (status === 0x90 && data[2] > 0) {
+      held.add(data[1]);
+      renderHeld();
+      log(stamp() + "  note-on   " + noteName(data[1]).padEnd(4) + " midi " + String(data[1]).padStart(3) +
+        "  vel " + String(data[2]).padStart(3) + "  ch " + channel + "  [" + source + "]", "noteon");
+      return;
+    }
+
+    // A note-on with velocity 0 is a note-off. Many keyboards send only this form.
+    if (status === 0x80 || (status === 0x90 && data[2] === 0)) {
+      held.delete(data[1]);
+      renderHeld();
+      log(stamp() + "  note-off  " + noteName(data[1]).padEnd(4) + " midi " + String(data[1]).padStart(3) +
+        "  ch " + channel + "  [" + source + "]", "noteoff");
+      return;
+    }
+
+    log(stamp() + "  other     " + Array.from(data).map(function (b) {
+      return b.toString(16).padStart(2, "0");
+    }).join(" ") + "  [" + source + "]", "other");
+  }
+
+  function attach() {
+    access.inputs.forEach(function (input) { input.onmidimessage = onMessage; });
+    renderInputs();
+  }
+
+  document.getElementById("connect").addEventListener("click", function () {
+    if (!window.isSecureContext) {
+      log("Not a secure context. Serve over HTTPS, or over http://localhost via adb reverse.", "err");
+      return;
+    }
+    if (typeof navigator.requestMIDIAccess !== "function") {
+      log("navigator.requestMIDIAccess is not available in this browser.", "err");
+      return;
+    }
+    log("Requesting MIDI access...");
+    navigator.requestMIDIAccess({ sysex: false }).then(function (midi) {
+      access = midi;
+      log("MIDI access granted. " + midi.inputs.size + " input(s).", "noteon");
+      attach();
+      midi.onstatechange = function (e) {
+        log(stamp() + "  statechange: " + e.port.type + " " + (e.port.name || "?") + " -> " +
+          e.port.state + "/" + e.port.connection, "other");
+        attach();
+      };
+    }).catch(function (err) {
+      log("MIDI access failed: " + err.name + " — " + err.message, "err");
+    });
+  });
+
+  document.getElementById("clear").addEventListener("click", function () {
+    logEl.innerHTML = "";
+  });
+
+  showEnv();
+  log("Ready. Tap \"Connect MIDI\" and allow the permission prompt.");
+</script>
+
+</body>
+</html>
