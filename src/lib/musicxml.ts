@@ -56,6 +56,12 @@ export function titleFromMusicXml(xml: string): string | null {
   return null
 }
 
+export function composerFromMusicXml(xml: string): string | null {
+  const doc = new DOMParser().parseFromString(xml, 'application/xml')
+  const creator = doc.querySelector('identification > creator[type="composer"]')?.textContent?.trim()
+  return creator || null
+}
+
 /**
  * Walks the OSMD cursor from the start and records one step per cursor position
  * that sounds at least one note. The cursor walks the played order, so repeats

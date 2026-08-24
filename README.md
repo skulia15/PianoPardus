@@ -30,6 +30,10 @@ Two deliberate departures from the spec:
 - §3 rules out tempo entirely. There is now a playback mode with a speed
   control, which needs one — see [Playback](#playback). It is still not
   tempo-*following*: nothing about your own timing is ever measured or scored.
+- §2 asks for no built-in library, to keep clear of licensing. Eight
+  public-domain pieces are now bundled — see [Starter pieces](#starter-pieces).
+  The licensing reasoning behind the original goal is why they are all free
+  material and why every source is credited.
 
 ## Running it
 
@@ -94,15 +98,20 @@ it needs the same SPA fallback.
 
 ## Using it
 
-1. **Import.** Tap Import on the library screen and pick a `.musicxml`, `.xml`,
+1. **Start with something.** Eight public-domain pieces are bundled, listed
+   easiest first at the bottom of the library — Canon in D, Gymnopédie No. 1,
+   Prelude in C, the Chopin Nocturne, In the Hall of the Mountain King, Rondo
+   alla Turca, The Entertainer, Maple Leaf Rag. Tap one to add it. See
+   [Starter pieces](#starter-pieces).
+2. **Import.** Tap Import on the library screen and pick a `.musicxml`, `.xml`,
    `.mxl`, `.mid` or `.midi` file. Once the app is installed to the home screen
    you can also share a file to it from Chrome or Drive. A MIDI file pauses on
    "Engraving…" for a second or two while notation is worked out of it; that
    happens once, at import.
-2. **Play.** Tap a piece. The blue keys are what to play next; the cursor sits on
+3. **Play.** Tap a piece. The blue keys are what to play next; the cursor sits on
    the current step. Play them and it advances. A wrong note flashes red and
    counts against you but changes nothing else.
-3. **Finish.** The last step opens the results screen: accuracy, wrong notes,
+4. **Finish.** The last step opens the results screen: accuracy, wrong notes,
    elapsed time.
 
 Under the keyboard: skip back, play, speed, and a bar-jump slider, with Restart
@@ -129,6 +138,28 @@ laziness: on a real two-hand arrangement, letting the window narrow again resize
 the keyboard on a fifth of all steps, and a keyboard that stays where you learned
 it reads better than one that is always the ideal width. Growing only, the same
 piece resizes twice from beginning to end.
+
+## Starter pieces
+
+Eight pieces ship with the app so it is not empty on first run. Public-domain
+compositions, engraved from [Mutopia Project](https://www.mutopiaproject.org/)
+typesettings — sources, typesetters and licences are listed in
+[`public/starter/CREDITS.md`](public/starter/CREDITS.md). Two of the eight are
+CC BY and CC BY-SA rather than outright public domain, which is why that file
+exists.
+
+They are `.mxl` — compressed MusicXML — which is 160 kB for the set instead of
+4.4 MB, and happens to exercise the format MuseScore exports by default. Each
+one adds in well under a second: no engraving, no engine download, notation
+straight away.
+
+**No in-copyright music is bundled, and none should be.** Popular film and pop
+arrangements are almost all still under copyright. Importing your own copy for
+your own practice is one thing; shipping it inside a deployed app is a licence
+nobody here has. That is also the spec's own position — §2 asks for no built-in
+library precisely to avoid the licensing problem, which makes this the third
+deliberate departure, and the reason it is limited to material that is genuinely
+free.
 
 ## Playback
 
@@ -202,7 +233,7 @@ public.
 ## Verification
 
 ```sh
-npm run check                        # dev server + headless browser, 59 checks
+npm run check                        # dev server + headless browser, 64 checks
 npm run build && npm run check:share # share target and offline, 6 checks
 ```
 
@@ -230,8 +261,8 @@ advancing, partial chords not advancing, accuracy arithmetic, bar jumping, the
 keyboard widening for a four-octave step, a MIDI file being engraved and
 switched to the roll and back, playback advancing at the score's own tempo and
 sounding notes on a connected instrument, skip back landing on bar starts, a
-multipart share POST exactly as Android sends it, and loading and playing with
-the network cut.
+multipart share POST exactly as Android sends it, a bundled .mxl unzipping into
+notation, and loading and playing with the network cut.
 
 **Still needs the phone**, because nothing else can prove it:
 
@@ -283,6 +314,7 @@ src/
   screens/     Library, Player, Import (the share-sheet landing)
   components/  Notation (OSMD), Keyboard, PianoRoll, Results, JumpControl
   lib/
+    starter.ts   the bundled public-domain pieces
     musicxml.ts  .mxl unzip, cursor walk to steps, pitch-mapping check
     midifile.ts  @tonejs/midi flatten and chord grouping
     notation.ts  engraving MIDI into MusicXML via webmscore

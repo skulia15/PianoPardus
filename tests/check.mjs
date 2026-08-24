@@ -294,6 +294,27 @@ async function main() {
     check('all three pieces are listed', await page.locator('.piece').count(), 3)
     check('step counts are shown once known', (await page.locator('.piece-meta').first().textContent()).includes('2 steps'), true)
     if (process.env.SCREENSHOT) await page.screenshot({ path: process.env.SCREENSHOT.replace('.png', '-library.png') })
+
+    // --- Bundled starter pieces -------------------------------------------
+    check('the starter list is bundled', await page.locator('.starter-row').count(), 8)
+
+    await page.locator('.starter-row', { hasText: 'Gymnopédie No. 1' }).click()
+    await page.waitForFunction(
+      () => document.querySelectorAll('.starter-row.added').length === 1,
+      null,
+      { timeout: 30_000 },
+    )
+    check('adding one puts it in the library', await page.locator('.piece').count(), 4)
+    check(
+      'with the title and composer from the manifest',
+      (await page.locator('.piece-title').first().textContent()).trim(),
+      'Gymnopédie No. 1 · Satie',
+    )
+
+    await page.locator('.piece-open', { hasText: 'Gymnopédie' }).first().click()
+    await page.waitForFunction(() => document.querySelector('.readout-notes')?.textContent !== '…', null, { timeout: 30_000 })
+    check('a bundled .mxl unzips and renders as notation', await page.locator('.notation svg').count(), 1)
+    check('and it has bars to jump between', (await page.locator('.header .meta').textContent()).includes('bar 1'), true)
   } finally {
     await browser.close()
     server.kill('SIGTERM')

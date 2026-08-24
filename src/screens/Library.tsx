@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { deletePiece, listPieces } from '../lib/db'
 import { ACCEPTED_EXTENSIONS, importFile, type ImportStage } from '../lib/pieces'
+import { addStarterPiece, STARTER_PIECES, type StarterPiece } from '../lib/starter'
 import type { PieceRecord } from '../types'
 
 export default function Library() {
@@ -9,6 +10,7 @@ export default function Library() {
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [busy, setBusy] = useState<ImportStage | null>(null)
+  const [adding, setAdding] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -35,7 +37,7 @@ export default function Library() {
     setError(null)
     for (const file of files) {
       try {
-        await importFile(file.name, file, setBusy)
+        await importFile(file.name, file, { onStage: setBusy })
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause))
       }
@@ -44,11 +46,26 @@ export default function Library() {
     await refresh()
   }
 
+  async function onAddStarter(piece: StarterPiece) {
+    setError(null)
+    setAdding(piece.file)
+    try {
+      await addStarterPiece(piece, setBusy)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    }
+    setBusy(null)
+    setAdding(null)
+    await refresh()
+  }
+
   async function onDelete(id: string) {
     await deletePiece(id)
     setConfirmDelete(null)
     await refresh()
   }
+
+  const added = new Set((pieces ?? []).map((piece) => piece.fileName))
 
   return (
     <div className="screen">
@@ -78,13 +95,15 @@ export default function Library() {
       )}
 
       <div className="scroll">
-        {pieces === null ? null : pieces.length === 0 ? (
+        {pieces !== null && pieces.length === 0 && (
           <div className="empty">
             <strong>No pieces yet</strong>
             Find a <code>.musicxml</code> or <code>.mid</code> file in your browser and share it
-            to PianoPardus, or use Import above.
+            to PianoPardus, or use Import above. Or start with one of these.
           </div>
-        ) : (
+        )}
+
+        {pieces !== null && pieces.length > 0 && (
           <ul className="piece-list">
             {pieces.map((piece) => (
               <PieceRow
@@ -98,6 +117,40 @@ export default function Library() {
               />
             ))}
           </ul>
+        )}
+
+        {pieces !== null && (
+          <section className="starter">
+            <h2 className="label">Starter pieces</h2>
+            <p className="dim starter-intro">
+              Public-domain classics, bundled with the app. Roughly easiest first.
+            </p>
+            <ul>
+              {STARTER_PIECES.map((piece) => (
+                <li key={piece.file}>
+                  {added.has(piece.file) ? (
+                    <div className="starter-row added">
+                      <span className="starter-title">{piece.title}</span>
+                      <span className="starter-meta">
+                        {piece.composer} · <span className="dim">in your library</span>
+                      </span>
+                    </div>
+                  ) : (
+                    <button
+                      className="starter-row"
+                      disabled={busy !== null}
+                      onClick={() => onAddStarter(piece)}
+                    >
+                      <span className="starter-title">{piece.title}</span>
+                      <span className="starter-meta dim">
+                        {adding === piece.file ? 'adding…' : `${piece.composer} · ${piece.note}`}
+                      </span>
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
       </div>
     </div>
@@ -147,7 +200,10 @@ function PieceRow({
           if (!longPressed.current) onOpen()
         }}
       >
-        <span className="piece-title">{piece.title}</span>
+        <span className="piece-title">
+          {piece.title}
+          {piece.composer && <span className="piece-composer dim"> · {piece.composer}</span>}
+        </span>
         <span className="piece-meta">
           <span className={`badge ${piece.source}`}>{piece.source === 'midi' ? 'MIDI' : 'XML'}</span>
           {piece.stepCount > 0 && <span className="dim">{piece.stepCount} steps</span>}

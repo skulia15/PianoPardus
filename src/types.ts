@@ -25,6 +25,7 @@ export type Piece = {
 export type PieceRecord = {
   id: string
   title: string
+  composer?: string
   fileName: string
   source: PieceSource
   addedAt: number

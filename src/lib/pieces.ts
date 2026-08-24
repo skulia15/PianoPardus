@@ -1,7 +1,7 @@
 import { putPiece } from './db'
 import { titleFromMidi } from './midifile'
 import { midiToMusicXml } from './notation'
-import { readMusicXmlText, titleFromMusicXml } from './musicxml'
+import { composerFromMusicXml, readMusicXmlText, titleFromMusicXml } from './musicxml'
 import type { PieceRecord, PieceSource } from '../types'
 
 const MUSICXML = ['.musicxml', '.xml', '.mxl']
@@ -32,27 +32,37 @@ export type ImportStage = 'reading' | 'engraving'
  * open is fast and they get real notation. Engraving is allowed to fail — the
  * player falls back to the piano roll.
  */
+export type ImportOptions = {
+  onStage?: (stage: ImportStage) => void
+  /** Overrides whatever the file says its title is — used for bundled pieces. */
+  title?: string
+  composer?: string
+}
+
 export async function importFile(
   fileName: string,
   blob: Blob,
-  onStage?: (stage: ImportStage) => void,
+  options: ImportOptions = {},
 ): Promise<PieceRecord> {
   const source = sourceForFileName(fileName)
   if (!source) {
     throw new Error(`${fileName} is not a MusicXML or MIDI file.`)
   }
 
-  onStage?.('reading')
+  options.onStage?.('reading')
 
-  // Reading the title early also checks the file is readable at all.
-  let title = titleFromFileName(fileName)
+  // Reading the file early also checks it is readable at all.
+  let title = options.title ?? titleFromFileName(fileName)
+  let composer = options.composer
   let notationXml: string | undefined
 
   if (source === 'musicxml') {
-    title = titleFromMusicXml(await readMusicXmlText(blob)) ?? title
+    const xml = await readMusicXmlText(blob)
+    if (!options.title) title = titleFromMusicXml(xml) ?? title
+    composer = composer ?? composerFromMusicXml(xml) ?? undefined
   } else {
-    title = (await titleFromMidi(blob)) ?? title
-    onStage?.('engraving')
+    if (!options.title) title = (await titleFromMidi(blob)) ?? title
+    options.onStage?.('engraving')
     notationXml = (await midiToMusicXml(blob)) ?? undefined
   }
 
@@ -64,6 +74,7 @@ export async function importFile(
     addedAt: Date.now(),
     stepCount: 0,
     blob,
+    ...(composer ? { composer } : {}),
     ...(notationXml ? { notationXml } : {}),
   }
   await putPiece(record)

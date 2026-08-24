@@ -415,3 +415,38 @@ code {
   padding: 8px 10px;
   font-variant-numeric: tabular-nums;
 }
+
+/* Starter pieces ---------------------------------------------------------- */
+
+.starter { padding: 6px 12px 18px; }
+
+.starter h2 { margin: 8px 2px 4px; }
+
+.starter-intro { margin: 0 2px 10px; font-size: 13px; }
+
+.starter ul { list-style: none; margin: 0; padding: 0; }
+
+.starter li { margin-bottom: 6px; }
+
+.starter-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 11px 13px;
+  font-weight: 400;
+}
+
+.starter-row.added { background: var(--panel); }
+
+.starter-title { font-size: 15px; font-weight: 600; }
+
+.starter-meta { font-size: 12px; }
+
+.piece-composer { font-weight: 400; }
