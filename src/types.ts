@@ -25,6 +25,10 @@ export type PieceRecord = {
   addedAt: number
   stepCount: number
   blob: Blob
+  /** MusicXML engraved from a MIDI file at import, when that worked. */
+  notationXml?: string
+  /** Set when the engraving came out badly enough that the roll is preferable. */
+  notationHidden?: boolean
 }
 
 /** A file handed over by the Android share sheet, waiting to be imported. */

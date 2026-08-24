@@ -41,6 +41,10 @@ function startServer() {
 async function importFixture(page, file) {
   await page.goto(BASE, { waitUntil: 'networkidle' })
   await page.locator('input[type=file]').setInputFiles(here(`../samples/${file}`))
+  // MIDI files are engraved on import, which takes a moment and loads the engine.
+  await page.waitForFunction(() => !document.querySelector('.header button[disabled]'), null, {
+    timeout: 120_000,
+  })
   await page.locator('.piece-title').first().waitFor()
 }
 
@@ -156,12 +160,21 @@ async function main() {
     await page.locator('.readout-notes').waitFor()
     await page.waitForFunction(() => document.querySelector('.readout-notes').textContent !== '…')
 
-    check('no notation pane for a MIDI piece', await page.locator('.notation').count(), 0)
-    check('the missing notation is admitted to', (await page.locator('.upcoming-caveat').textContent()).includes('No notation available'), true)
+    check('a MIDI file is engraved into notation on import', await page.locator('.notation svg').count(), 1)
+    check('engraved MIDI gets bar numbers', (await page.locator('.header .meta').textContent()).includes('bar 1'), true)
+    check('engraving agrees with the raw MIDI grouping on step count', (await page.locator('.header .meta').textContent()).includes('1/4'), true)
     check('first MIDI step is C4', await readout(page), 'C4')
-    check('header counts four MIDI steps', (await page.locator('.header .meta').textContent()).includes('1/4'), true)
-    check('upcoming shows the next three steps', await page.locator('.upcoming-list li').count(), 3)
-    check('simultaneous notes group into one chord step', await page.locator('.upcoming-list li').last().textContent(), '4C4 · E4 · G4')
+
+    // --- Falling back to the piano roll -----------------------------------
+    await page.locator('.controls button', { hasText: 'Roll' }).click()
+    await page.waitForFunction(() => document.querySelector('.roll-svg') !== null, null, { timeout: 10_000 })
+    check('the roll replaces the notation when asked', await page.locator('.notation').count(), 0)
+    check('the roll draws the current step', await page.locator('.roll-note.current').count(), 1)
+    check('the steps survive the switch', await readout(page), 'C4')
+
+    await page.locator('.controls button', { hasText: 'Notation' }).click()
+    await page.waitForFunction(() => document.querySelector('.notation svg') !== null, null, { timeout: 20_000 })
+    check('and the notation comes back', await page.locator('.notation svg').count(), 1)
 
     if (process.env.SCREENSHOT) await page.screenshot({ path: process.env.SCREENSHOT.replace('.png', '-midi.png') })
 

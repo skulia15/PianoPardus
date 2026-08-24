@@ -1,5 +1,6 @@
 import { putPiece } from './db'
 import { titleFromMidi } from './midifile'
+import { midiToMusicXml } from './notation'
 import { readMusicXmlText, titleFromMusicXml } from './musicxml'
 import type { PieceRecord, PieceSource } from '../types'
 
@@ -20,23 +21,39 @@ export function titleFromFileName(fileName: string): string {
 
 export const ACCEPTED_EXTENSIONS = [...MUSICXML, ...MIDI].join(',')
 
+export type ImportStage = 'reading' | 'engraving'
+
 /**
  * Stores the raw file and returns the new record. The score's own title is read
  * here if it has one; the step count is filled in when the player first parses
  * the piece, since that needs a rendered score.
+ *
+ * MIDI files are also engraved into MusicXML here, once, so that every later
+ * open is fast and they get real notation. Engraving is allowed to fail — the
+ * player falls back to the piano roll.
  */
-export async function importFile(fileName: string, blob: Blob): Promise<PieceRecord> {
+export async function importFile(
+  fileName: string,
+  blob: Blob,
+  onStage?: (stage: ImportStage) => void,
+): Promise<PieceRecord> {
   const source = sourceForFileName(fileName)
   if (!source) {
     throw new Error(`${fileName} is not a MusicXML or MIDI file.`)
   }
 
+  onStage?.('reading')
+
   // Reading the title early also checks the file is readable at all.
   let title = titleFromFileName(fileName)
+  let notationXml: string | undefined
+
   if (source === 'musicxml') {
     title = titleFromMusicXml(await readMusicXmlText(blob)) ?? title
   } else {
     title = (await titleFromMidi(blob)) ?? title
+    onStage?.('engraving')
+    notationXml = (await midiToMusicXml(blob)) ?? undefined
   }
 
   const record: PieceRecord = {
@@ -47,6 +64,7 @@ export async function importFile(fileName: string, blob: Blob): Promise<PieceRec
     addedAt: Date.now(),
     stepCount: 0,
     blob,
+    ...(notationXml ? { notationXml } : {}),
   }
   await putPiece(record)
   return record

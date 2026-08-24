@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { deletePiece, listPieces } from '../lib/db'
-import { ACCEPTED_EXTENSIONS, importFile } from '../lib/pieces'
+import { ACCEPTED_EXTENSIONS, importFile, type ImportStage } from '../lib/pieces'
 import type { PieceRecord } from '../types'
 
 export default function Library() {
   const [pieces, setPieces] = useState<PieceRecord[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [busy, setBusy] = useState<ImportStage | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -34,11 +35,12 @@ export default function Library() {
     setError(null)
     for (const file of files) {
       try {
-        await importFile(file.name, file)
+        await importFile(file.name, file, setBusy)
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause))
       }
     }
+    setBusy(null)
     await refresh()
   }
 
@@ -52,7 +54,9 @@ export default function Library() {
     <div className="screen">
       <div className="header">
         <h1>PianoPardus</h1>
-        <button onClick={() => fileInput.current?.click()}>Import</button>
+        <button disabled={busy !== null} onClick={() => fileInput.current?.click()}>
+          {busy === null ? 'Import' : busy === 'reading' ? 'Reading…' : 'Engraving…'}
+        </button>
         <input
           ref={fileInput}
           type="file"
@@ -64,6 +68,14 @@ export default function Library() {
       </div>
 
       {(error ?? shareProblem) && <div className="banner wrong">{error ?? shareProblem}</div>}
+      {busy === 'engraving' && (
+        <div className="banner">
+          <span className="dim">
+            Working the notation out of the MIDI file. First time only, and it downloads the
+            engraving engine.
+          </span>
+        </div>
+      )}
 
       <div className="scroll">
         {pieces === null ? null : pieces.length === 0 ? (

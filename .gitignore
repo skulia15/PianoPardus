@@ -5,3 +5,4 @@ dev-dist/
 *.local
 .env*
 /*.png
+/public/webmscore/

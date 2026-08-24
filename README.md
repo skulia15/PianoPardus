@@ -6,6 +6,9 @@ notation on screen and a piano diagram showing which keys come next. The app
 waits for the correct notes before advancing, so it is impossible to get lost,
 and reports accuracy at the end.
 
+MIDI files get notation too: they are engraved into MusicXML on import, so a
+`.mid` file plays with real staves rather than a bare note list.
+
 No accounts, no backend, no built-in song library. Everything is local, and an
 imported piece plays with no network at all.
 
@@ -16,6 +19,12 @@ The full specification is in [`pianopardus-spec.md`](pianopardus-spec.md).
 All ten steps of the build order are implemented. What is verified in a headless
 browser, and what still needs the physical device, is listed under
 [Verification](#verification).
+
+One deliberate departure from the spec: §7.2 has MIDI pieces hide the notation
+pane and show an upcoming-notes list. They are engraved into notation instead —
+see [Notation from MIDI](#notation-from-midi) — and the list has become a piano
+roll, which is what a MIDI piece falls back to when engraving fails or is turned
+off.
 
 ## Running it
 
@@ -82,7 +91,9 @@ it needs the same SPA fallback.
 
 1. **Import.** Tap Import on the library screen and pick a `.musicxml`, `.xml`,
    `.mxl`, `.mid` or `.midi` file. Once the app is installed to the home screen
-   you can also share a file to it from Chrome or Drive.
+   you can also share a file to it from Chrome or Drive. A MIDI file pauses on
+   "Engraving…" for a second or two while notation is worked out of it; that
+   happens once, at import.
 2. **Play.** Tap a piece. The blue keys are what to play next; the cursor sits on
    the current step. Play them and it advances. A wrong note flashes red and
    counts against you but changes nothing else.
@@ -91,6 +102,12 @@ it needs the same SPA fallback.
 
 Restart and a bar-jump slider are under the keyboard. There is no play/pause —
 the app is always waiting for input.
+
+An engraved MIDI piece also gets a **Roll** button, which swaps the notation for
+a piano roll: time running upwards, pitch across, on exactly the keyboard's
+x axis, so a note falls onto the key it wants. Use it when the engraving comes
+out badly — the choice is remembered per piece. It is also what a MIDI file gets
+when engraving fails outright.
 
 The on-screen keys are tappable as well as MIDI-driven. That is not in the spec;
 it is there because it is the only way to exercise the matching engine without
@@ -108,10 +125,50 @@ the keyboard on a fifth of all steps, and a keyboard that stays where you learne
 it reads better than one that is always the ideal width. Growing only, the same
 piece resizes twice from beginning to end.
 
+## Notation from MIDI
+
+MIDI carries no engraving information at all: no bars, no note values, no key
+signature, no staves. Those have to be invented from the timing, which is a real
+problem, not a formatting one.
+
+Rather than hand-roll a quantiser, the app uses
+[webmscore](https://github.com/LibreScore/webmscore) — MuseScore's own engine
+compiled to WebAssembly. On a 1255-note two-hand arrangement it recovered 6/8,
+one flat and 87 bars of clean quarter/eighth/16th values with dots and ties, in
+about 1.5 seconds, and OSMD's cursor walk over the result produced exactly the
+same 429 steps as the raw MIDI grouping — so the notation agrees with the file
+it came from.
+
+Three practical things about it:
+
+- **It is 17 MB of WebAssembly**, so it is not bundled and not precached. It
+  loads from a `<script>` tag on first MIDI import and the service worker keeps
+  it in a runtime cache afterwards. Import a MIDI file offline before ever doing
+  it online and engraving simply fails, which falls back to the roll.
+- **It is not in git.** `npm install` puts it in `node_modules`, and
+  `scripts/copy-webmscore.mjs` copies the four files it needs into
+  `public/webmscore/`. That runs automatically before `dev`, `build` and the
+  checks.
+- **Its output is only as good as its input.** These files came out of notation
+  software; a MIDI captured from a human performance is not quantised, and the
+  engraving will be much messier. That is the limit of the technique, not of the
+  library. Hit **Roll** when it happens.
+
+It also comes out as two stacked staves rather than a piano grand staff, because
+the MIDI's two tracks become two parts and webmscore exposes none of MuseScore's
+import options. Legible, just taller than it should be.
+
+### Licensing
+
+webmscore is GPL, being MuseScore. That is irrelevant while this is a personal
+tool, but publishing the app means distributing webmscore with it, and the
+combined work inherits GPL terms. Worth knowing before putting it anywhere
+public.
+
 ## Verification
 
 ```sh
-npm run check                        # dev server + headless browser, 40 checks
+npm run check                        # dev server + headless browser, 42 checks
 npm run build && npm run check:share # share target and offline, 6 checks
 ```
 
@@ -136,8 +193,9 @@ octaves.
 Covered: the `halfTone + 12` conversion (middle C comes out as MIDI 60),
 `<alter>` handling, chord grouping in both formats, wrong notes counting without
 advancing, partial chords not advancing, accuracy arithmetic, bar jumping, the
-keyboard widening for a four-octave step, the MIDI-only mode, a multipart share
-POST exactly as Android sends it, and loading and playing with the network cut.
+keyboard widening for a four-octave step, a MIDI file being engraved and
+switched to the roll and back, a multipart share POST exactly as Android sends
+it, and loading and playing with the network cut.
 
 **Still needs the phone**, because nothing else can prove it:
 
@@ -164,8 +222,9 @@ Deliberate, from the spec:
 - **Repeated notes need a re-press.** The held set is cleared when a step
   completes, so the same note in consecutive steps has to be released and played
   again. This is how a person would play it anyway.
-- **No notation for MIDI files.** MIDI carries no engraving information. Those
-  pieces show the next four steps as text instead, and say so.
+- **Notation for MIDI files is invented, not read.** See
+  [Notation from MIDI](#notation-from-midi). When it cannot be worked out, the
+  piano roll takes over and the app says so.
 - **Nothing is kept from the results screen.** No history, no streaks.
 
 Worth knowing:
@@ -185,10 +244,12 @@ Worth knowing:
 ```
 src/
   screens/     Library, Player, Import (the share-sheet landing)
-  components/  Notation (OSMD), Keyboard (SVG), Upcoming, Results, JumpControl
+  components/  Notation (OSMD), Keyboard, PianoRoll, Results, JumpControl
   lib/
     musicxml.ts  .mxl unzip, cursor walk to steps, pitch-mapping check
     midifile.ts  @tonejs/midi flatten and chord grouping
+    notation.ts  engraving MIDI into MusicXML via webmscore
+    keys.ts      key geometry and the window, shared by keyboard and roll
     matcher.ts   the entire matching engine
     midi.ts      Web MIDI input
     db.ts        IndexedDB, shared with the service worker

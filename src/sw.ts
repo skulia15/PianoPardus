@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import { clientsClaim } from 'workbox-core'
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
+import { CacheFirst } from 'workbox-strategies'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { putInbox } from './lib/db'
 
@@ -50,3 +51,11 @@ cleanupOutdatedCaches()
 // Every route is client-side, so any navigation is served the app shell. This is
 // also what makes an already-imported piece playable with no network.
 registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')))
+
+// The engraving engine is 17 MB and most sessions never need it, so it is not
+// precached — but once a MIDI file has been imported it is worth keeping, and it
+// never changes within a version.
+registerRoute(
+  ({ url }) => url.pathname.startsWith('/webmscore/'),
+  new CacheFirst({ cacheName: 'webmscore' }),
+)

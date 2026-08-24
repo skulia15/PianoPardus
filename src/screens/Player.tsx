@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import JumpControl from '../components/JumpControl'
-import Keyboard, { INITIAL_WINDOW, windowFor } from '../components/Keyboard'
+import Keyboard from '../components/Keyboard'
 import Notation from '../components/Notation'
+import PianoRoll from '../components/PianoRoll'
 import Results from '../components/Results'
-import Upcoming from '../components/Upcoming'
 import { getPiece, putPiece } from '../lib/db'
+import { INITIAL_WINDOW, windowFor } from '../lib/keys'
 import { useMatcher } from '../lib/matcher'
 import { midiStatusMessage, useMidiInput } from '../lib/midi'
 import { parseMidiSteps } from '../lib/midifile'
@@ -22,7 +23,8 @@ export default function Player() {
   const [steps, setSteps] = useState<Step[] | null>(null)
   const [warning, setWarning] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-
+  // null means "whatever the piece was left set to".
+  const [hideOverride, setHideOverride] = useState<boolean | null>(null)
 
   const matcher = useMatcher(steps)
   const midi = useMidiInput(
@@ -32,6 +34,11 @@ export default function Player() {
 
   useEffect(() => {
     let cancelled = false
+    setXml(null)
+    setSteps(null)
+    setWarning(null)
+    setError(null)
+
     ;(async () => {
       if (!id) return
       const found = await getPiece(id)
@@ -41,23 +48,35 @@ export default function Player() {
         return
       }
       setRecord(found)
+
+      const hidden = hideOverride ?? found.notationHidden ?? false
       try {
-        if (found.source === 'midi') {
+        if (found.source === 'musicxml') {
+          const text = await readMusicXmlText(found.blob)
+          if (!cancelled) setXml(text)
+        } else if (found.notationXml && !hidden) {
+          // Engraved from the MIDI at import time; from here it is an ordinary
+          // score, cursor and bar numbers included.
+          if (!cancelled) setXml(found.notationXml)
+        } else {
           const parsed = await parseMidiSteps(found.blob)
           if (cancelled) return
           setSteps(parsed)
-          if (found.stepCount !== parsed.length) void putPiece({ ...found, stepCount: parsed.length })
-        } else {
-          setXml(await readMusicXmlText(found.blob))
+          if (found.stepCount !== parsed.length) {
+            void putPiece({ ...found, stepCount: parsed.length })
+          }
         }
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : 'Could not read that file.')
+        if (!cancelled) {
+          setError(cause instanceof Error ? cause.message : 'Could not read that file.')
+        }
       }
     })()
+
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, hideOverride])
 
   const onSteps = useCallback(
     (parsed: Step[]) => {
@@ -82,6 +101,14 @@ export default function Player() {
   windowRef.current = windowFor(step?.notes ?? [], windowRef.current)
 
   const midiMessage = midiStatusMessage(midi.status)
+  const engraved = record?.source === 'midi' && Boolean(record.notationXml)
+  const notationHidden = hideOverride ?? record?.notationHidden ?? false
+
+  function toggleNotation() {
+    const next = !notationHidden
+    setHideOverride(next)
+    if (record) void putPiece({ ...record, notationHidden: next })
+  }
 
   if (steps && matcher.done) {
     return (
@@ -128,6 +155,9 @@ export default function Player() {
           </button>
         </div>
       )}
+      {steps?.length === 0 && (
+        <div className="banner wrong">There are no playable notes in this file.</div>
+      )}
 
       {xml && !error && (
         <Notation
@@ -138,10 +168,16 @@ export default function Player() {
         />
       )}
 
-      {record?.source === 'midi' && steps && <Upcoming steps={steps} from={matcher.stepIndex} />}
-
-      {steps?.length === 0 && (
-        <div className="banner wrong">There are no playable notes in this file.</div>
+      {!xml && !error && record?.source === 'midi' && steps && (
+        <>
+          {!record.notationXml && (
+            <p className="dim roll-caveat">
+              No notation for this file — MIDI carries no engraving, and it could not be worked
+              out.
+            </p>
+          )}
+          <PianoRoll steps={steps} from={matcher.stepIndex} window={windowRef.current} />
+        </>
       )}
 
       <div className="readout">
@@ -149,7 +185,9 @@ export default function Player() {
         <span className="readout-notes">
           {step ? step.notes.map(noteName).join(' · ') : steps ? 'done' : '…'}
         </span>
-        <span className="readout-errors dim">{matcher.errors > 0 ? `${matcher.errors} wrong` : ''}</span>
+        <span className="readout-errors dim">
+          {matcher.errors > 0 ? `${matcher.errors} wrong` : ''}
+        </span>
       </div>
 
       <Keyboard
@@ -166,6 +204,11 @@ export default function Player() {
         <button className="secondary" onClick={matcher.restart}>
           Restart
         </button>
+        {engraved && (
+          <button className="secondary" onClick={toggleNotation}>
+            {notationHidden ? 'Notation' : 'Roll'}
+          </button>
+        )}
         {steps && steps.length > 0 && (
           <JumpControl steps={steps} stepIndex={matcher.stepIndex} onJump={matcher.jumpTo} />
         )}
