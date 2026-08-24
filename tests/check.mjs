@@ -128,6 +128,32 @@ async function main() {
     await page.getByText('Play again').click()
     await checkReadout(page, 'play again starts over', 'C4')
     check('play again clears the error count', await page.locator('.readout-errors').textContent(), '')
+
+    // --- MIDI file path ---------------------------------------------------
+    await importFixture(page, 'scale-test.mid')
+    check('MIDI file takes its title from the header', await page.getByText('Scale Test').count(), 1)
+
+    await page.getByText('Scale Test').click()
+    await page.locator('.readout-notes').waitFor()
+    await page.waitForFunction(() => document.querySelector('.readout-notes').textContent !== '…')
+
+    check('no notation pane for a MIDI piece', await page.locator('.notation').count(), 0)
+    check('the missing notation is admitted to', (await page.locator('.upcoming-caveat').textContent()).includes('No notation available'), true)
+    check('first MIDI step is C4', await readout(page), 'C4')
+    check('header counts four MIDI steps', (await page.locator('.header .meta').textContent()).includes('1/4'), true)
+    check('upcoming shows the next three steps', await page.locator('.upcoming-list li').count(), 3)
+    check('simultaneous notes group into one chord step', await page.locator('.upcoming-list li').last().textContent(), '4C4 · E4 · G4')
+
+    if (process.env.SCREENSHOT) await page.screenshot({ path: process.env.SCREENSHOT.replace('.png', '-midi.png') })
+
+    await play(page, [60])
+    await checkReadout(page, 'MIDI piece advances on the right note', 'D4')
+    await play(page, [62])
+    await play(page, [64])
+    await checkReadout(page, 'MIDI piece reaches the chord', 'C4 · E4 · G4')
+    await play(page, [60, 64, 67])
+    await page.locator('.accuracy').waitFor({ timeout: 3000 })
+    check('a clean run is 100%', await page.locator('.accuracy').textContent(), '100%')
   } finally {
     await browser.close()
     server.kill('SIGTERM')

@@ -3,9 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom'
 import Keyboard, { windowStartFor } from '../components/Keyboard'
 import Notation from '../components/Notation'
 import Results from '../components/Results'
+import Upcoming from '../components/Upcoming'
 import { getPiece, putPiece } from '../lib/db'
 import { useMatcher } from '../lib/matcher'
 import { midiStatusMessage, useMidiInput } from '../lib/midi'
+import { parseMidiSteps } from '../lib/midifile'
 import { checkPitchMapping, readMusicXmlText } from '../lib/musicxml'
 import { noteName } from '../lib/notes'
 import type { PieceRecord, Step } from '../types'
@@ -39,7 +41,14 @@ export default function Player() {
       }
       setRecord(found)
       try {
-        setXml(await readMusicXmlText(found.blob))
+        if (found.source === 'midi') {
+          const parsed = await parseMidiSteps(found.blob)
+          if (cancelled) return
+          setSteps(parsed)
+          if (found.stepCount !== parsed.length) void putPiece({ ...found, stepCount: parsed.length })
+        } else {
+          setXml(await readMusicXmlText(found.blob))
+        }
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : 'Could not read that file.')
       }
@@ -100,7 +109,9 @@ export default function Player() {
         </button>
         <h1>{record?.title ?? 'Loading'}</h1>
         <span className="meta">
-          {steps ? `bar ${step?.measure ?? '–'} · ${Math.min(matcher.stepIndex + 1, steps.length)}/${steps.length}` : null}
+          {steps
+            ? `${step?.measure ? `bar ${step.measure} · ` : ''}${Math.min(matcher.stepIndex + 1, steps.length)}/${steps.length}`
+            : null}
         </span>
       </div>
 
@@ -123,6 +134,8 @@ export default function Player() {
           onError={setError}
         />
       )}
+
+      {record?.source === 'midi' && steps && <Upcoming steps={steps} from={matcher.stepIndex} />}
 
       <div className="readout">
         <span className="label">next</span>

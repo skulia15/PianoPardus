@@ -1,4 +1,5 @@
 import { putPiece } from './db'
+import { titleFromMidi } from './midifile'
 import { readMusicXmlText, titleFromMusicXml } from './musicxml'
 import type { PieceRecord, PieceSource } from '../types'
 
@@ -30,10 +31,12 @@ export async function importFile(fileName: string, blob: Blob): Promise<PieceRec
     throw new Error(`${fileName} is not a MusicXML or MIDI file.`)
   }
 
+  // Reading the title early also checks the file is readable at all.
   let title = titleFromFileName(fileName)
   if (source === 'musicxml') {
-    // Also acts as an early check that the file is readable at all.
     title = titleFromMusicXml(await readMusicXmlText(blob)) ?? title
+  } else {
+    title = (await titleFromMidi(blob)) ?? title
   }
 
   const record: PieceRecord = {

@@ -338,3 +338,29 @@ code {
 .results-stats div { display: flex; flex-direction: column; gap: 4px; }
 .results-stats dt { margin: 0; }
 .results-stats dd { margin: 0; font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; }
+
+/* Upcoming (MIDI pieces have no notation) --------------------------------- */
+
+.upcoming {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.upcoming-caveat { margin: 0 0 12px; font-size: 13px; }
+
+.upcoming-list { list-style: none; margin: 0; padding: 0; }
+
+.upcoming-list li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  background: var(--panel);
+  border-radius: 10px;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
