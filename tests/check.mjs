@@ -174,10 +174,27 @@ async function main() {
     await page.locator('.accuracy').waitFor({ timeout: 3000 })
     check('a clean run is 100%', await page.locator('.accuracy').textContent(), '100%')
 
-    await page.getByText('Back to library').click()
+    // --- A step wider than the default keyboard window --------------------
+    await importFixture(page, 'wide-test.mid')
+    await page.getByText('Wide Test').click()
+    await page.waitForFunction(() => document.querySelector('.readout-notes')?.textContent !== '…')
+
+    check('a four-octave step is read correctly', await readout(page), 'C2 · C4 · C6')
+    check('the keyboard widens to fit it', await page.locator('.key.white').count(), 35)
+    check('so nothing is hidden off the edge', await page.locator('.offscreen').count(), 0)
+    check('all three notes are visible and expected', await page.locator('.key.expected').count(), 3)
+
+    await play(page, [36, 60, 84])
+    await checkReadout(page, 'the wide chord advances', 'C4')
+    // Deliberate: growing only. Letting it narrow again resized the keyboard on a
+    // fifth of the steps of a real two-hand arrangement, which reads worse than
+    // slightly thinner keys.
+    check('and the keyboard keeps the wider window', await page.locator('.key.white').count(), 35)
+
+    await page.locator('.header button').click()
     await page.locator('.piece').first().waitFor()
-    check('both pieces are listed', await page.locator('.piece').count(), 2)
-    check('step counts are shown once known', (await page.locator('.piece-meta').first().textContent()).includes('4 steps'), true)
+    check('all three pieces are listed', await page.locator('.piece').count(), 3)
+    check('step counts are shown once known', (await page.locator('.piece-meta').first().textContent()).includes('2 steps'), true)
     if (process.env.SCREENSHOT) await page.screenshot({ path: process.env.SCREENSHOT.replace('.png', '-library.png') })
   } finally {
     await browser.close()

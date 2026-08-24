@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import JumpControl from '../components/JumpControl'
-import Keyboard, { windowStartFor } from '../components/Keyboard'
+import Keyboard, { INITIAL_WINDOW, windowFor } from '../components/Keyboard'
 import Notation from '../components/Notation'
 import Results from '../components/Results'
 import Upcoming from '../components/Upcoming'
@@ -22,7 +22,7 @@ export default function Player() {
   const [steps, setSteps] = useState<Step[] | null>(null)
   const [warning, setWarning] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [windowStart, setWindowStart] = useState(48) // C3, so C4 sits mid-keyboard
+
 
   const matcher = useMatcher(steps)
   const midi = useMidiInput(
@@ -75,9 +75,11 @@ export default function Player() {
 
   const step = steps?.[matcher.stepIndex]
 
-  useEffect(() => {
-    setWindowStart((previous) => windowStartFor(step?.notes ?? [], previous))
-  }, [step])
+  // Worked out during render, not in an effect: an effect would leave the
+  // keyboard a frame behind the step, briefly drawing the new notes against the
+  // old window. windowFor is idempotent, so applying it while rendering is safe.
+  const windowRef = useRef(INITIAL_WINDOW)
+  windowRef.current = windowFor(step?.notes ?? [], windowRef.current)
 
   const midiMessage = midiStatusMessage(midi.status)
 
@@ -151,7 +153,7 @@ export default function Player() {
       </div>
 
       <Keyboard
-        windowStart={windowStart}
+        window={windowRef.current}
         expected={step?.notes ?? []}
         held={matcher.held}
         wrong={matcher.wrong}

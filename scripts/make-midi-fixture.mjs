@@ -1,5 +1,5 @@
-// Writes samples/scale-test.mid. Run `node scripts/make-midi-fixture.mjs` to
-// regenerate it.
+// Writes the MIDI fixtures in samples/. Run `node scripts/make-midi-fixture.mjs`
+// to regenerate them.
 // @tonejs/midi is CommonJS, so Node needs the default import here. Vite's
 // interop handles the named import used in the app itself.
 import midiPkg from '@tonejs/midi'
@@ -22,3 +22,16 @@ for (const note of [60, 64, 67]) {
 
 writeFileSync(new URL('../samples/scale-test.mid', import.meta.url), Buffer.from(midi.toArray()))
 console.log('wrote samples/scale-test.mid')
+
+// A step wider than two octaves, which is what both hands far apart looks like.
+// The keyboard has to widen for this rather than hide the outer notes.
+const wide = new Midi()
+wide.header.name = 'Wide Test'
+const wideTrack = wide.addTrack()
+for (const note of [36, 60, 84]) {
+  wideTrack.addNote({ midi: note, time: 0, duration: 1 })
+}
+wideTrack.addNote({ midi: 60, time: 1.5, duration: 0.5 })
+
+writeFileSync(new URL('../samples/wide-test.mid', import.meta.url), Buffer.from(wide.toArray()))
+console.log('wrote samples/wide-test.mid')

@@ -74,17 +74,22 @@ The on-screen keys are tappable as well as MIDI-driven. That is not in the spec;
 it is there because it is the only way to exercise the matching engine without
 the keyboard plugged in, and it is what the automated checks use.
 
-### Two octaves
+### How wide the keyboard is
 
-The keyboard shows two octaves, windowed on the notes to play, and only shifts
-when they no longer fit. A step spanning more than two octaves — both hands wide
-apart — cannot be shown at once; the notes off the edge are counted in a small
-marker at the side.
+Two octaves by default, windowed on the notes to play. A step spanning more than
+that — both hands wide apart, which is normal in real arrangements — widens the
+window instead of hiding the outer notes, up to six octaves.
+
+It grows but never shrinks within a piece. That is a measured decision, not
+laziness: on a real two-hand arrangement, letting the window narrow again resized
+the keyboard on a fifth of all steps, and a keyboard that stays where you learned
+it reads better than one that is always the ideal width. Growing only, the same
+piece resizes twice from beginning to end.
 
 ## Verification
 
 ```sh
-npm run check                        # dev server + headless browser, 34 checks
+npm run check                        # dev server + headless browser, 40 checks
 npm run build && npm run check:share # share target and offline, 5 checks
 ```
 
@@ -93,11 +98,24 @@ replaces `navigator.requestMIDIAccess`), so the parser, the matching engine and
 the results maths are all checked without hardware. Set `CHROMIUM_PATH` to use a
 Chromium already on the machine instead of one Playwright downloads.
 
+There is also a tool for running a real file end to end:
+
+```sh
+node tests/playthrough.mjs ~/Downloads/some-piece.mid
+```
+
+It imports the file, plays every step through the fake keyboard, and reports the
+step count, the accuracy it ended on, whether any notes were hidden off the
+keyboard's edge, and how often the keyboard resized. Real files are where the
+interesting problems are — this is what caught the keyboard hiding notes on wide
+two-hand steps, on a 429-step arrangement where 55% of steps span more than two
+octaves.
+
 Covered: the `halfTone + 12` conversion (middle C comes out as MIDI 60),
 `<alter>` handling, chord grouping in both formats, wrong notes counting without
 advancing, partial chords not advancing, accuracy arithmetic, bar jumping, the
-MIDI-only mode, a multipart share POST exactly as Android sends it, and loading
-and playing with the network cut.
+keyboard widening for a four-octave step, the MIDI-only mode, a multipart share
+POST exactly as Android sends it, and loading and playing with the network cut.
 
 **Still needs the phone**, because nothing else can prove it:
 

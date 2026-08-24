@@ -262,7 +262,6 @@ code {
 .key.black rect { fill: #14161c; stroke: #000; stroke-width: 0.5; }
 
 .key text {
-  font-size: 8px;
   text-anchor: middle;
   fill: #8b93a5;
   font-weight: 600;
