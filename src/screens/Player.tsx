@@ -1,8 +1,86 @@
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import Notation from '../components/Notation'
+import { getPiece, putPiece } from '../lib/db'
+import { checkPitchMapping, readMusicXmlText } from '../lib/musicxml'
+import { noteName } from '../lib/notes'
+import type { PieceRecord, Step } from '../types'
+
 export default function Player() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+
+  const [record, setRecord] = useState<PieceRecord | null>(null)
+  const [xml, setXml] = useState<string | null>(null)
+  const [steps, setSteps] = useState<Step[] | null>(null)
+  const [warning, setWarning] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [stepIndex, setStepIndex] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      if (!id) return
+      const found = await getPiece(id)
+      if (cancelled) return
+      if (!found) {
+        setError('That piece is no longer in the library.')
+        return
+      }
+      setRecord(found)
+      try {
+        setXml(await readMusicXmlText(found.blob))
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : 'Could not read that file.')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [id])
+
+  const onSteps = useCallback(
+    (parsed: Step[]) => {
+      setSteps(parsed)
+      setStepIndex(0)
+      if (xml) setWarning(checkPitchMapping(xml, parsed))
+      // Keep the library's step count honest now that we know it.
+      if (record && record.stepCount !== parsed.length) {
+        const updated = { ...record, stepCount: parsed.length }
+        setRecord(updated)
+        void putPiece(updated)
+      }
+    },
+    [record, xml],
+  )
+
+  const step = steps?.[stepIndex]
+
   return (
     <div className="screen">
-      <div className="header"><h1>Player</h1></div>
-      <div className="empty">Not built yet.</div>
+      <div className="header">
+        <button className="icon" onClick={() => navigate('/')} aria-label="Back to library">
+          ←
+        </button>
+        <h1>{record?.title ?? 'Loading'}</h1>
+        <span className="meta">
+          {steps ? `bar ${step?.measure ?? '–'} · ${stepIndex + 1}/${steps.length}` : null}
+        </span>
+      </div>
+
+      {error && <div className="banner wrong">{error}</div>}
+      {warning && <div className="banner wrong">{warning}</div>}
+
+      {xml && !error && (
+        <Notation xml={xml} cursorIndex={step?.osmdCursorIndex} onSteps={onSteps} onError={setError} />
+      )}
+
+      <div className="readout">
+        <span className="label">next</span>
+        <span className="readout-notes">
+          {step ? step.notes.map(noteName).join(' · ') : steps ? 'done' : '…'}
+        </span>
+      </div>
     </div>
   )
 }

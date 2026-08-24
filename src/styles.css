@@ -213,3 +213,33 @@ code {
   padding: 1px 5px;
   border-radius: 5px;
 }
+
+/* Player ------------------------------------------------------------------ */
+
+.notation {
+  flex: 1 1 50%;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #0a0b0e;
+  border-bottom: 1px solid var(--line);
+  position: relative;
+}
+
+.notation > div { position: relative; }
+
+.readout {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.readout-notes {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}

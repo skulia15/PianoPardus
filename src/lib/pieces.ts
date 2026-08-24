@@ -1,4 +1,5 @@
 import { putPiece } from './db'
+import { readMusicXmlText, titleFromMusicXml } from './musicxml'
 import type { PieceRecord, PieceSource } from '../types'
 
 const MUSICXML = ['.musicxml', '.xml', '.mxl']
@@ -19,17 +20,25 @@ export function titleFromFileName(fileName: string): string {
 export const ACCEPTED_EXTENSIONS = [...MUSICXML, ...MIDI].join(',')
 
 /**
- * Stores the raw file and returns the new record. Nothing is parsed here beyond
- * working out the format — parsing happens when the player opens the piece.
+ * Stores the raw file and returns the new record. The score's own title is read
+ * here if it has one; the step count is filled in when the player first parses
+ * the piece, since that needs a rendered score.
  */
 export async function importFile(fileName: string, blob: Blob): Promise<PieceRecord> {
   const source = sourceForFileName(fileName)
   if (!source) {
     throw new Error(`${fileName} is not a MusicXML or MIDI file.`)
   }
+
+  let title = titleFromFileName(fileName)
+  if (source === 'musicxml') {
+    // Also acts as an early check that the file is readable at all.
+    title = titleFromMusicXml(await readMusicXmlText(blob)) ?? title
+  }
+
   const record: PieceRecord = {
     id: crypto.randomUUID(),
-    title: titleFromFileName(fileName),
+    title,
     fileName,
     source,
     addedAt: Date.now(),
