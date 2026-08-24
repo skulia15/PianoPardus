@@ -84,7 +84,7 @@ marker at the side.
 ## Verification
 
 ```sh
-npm run check                        # dev server + headless browser, 24 checks
+npm run check                        # dev server + headless browser, 34 checks
 npm run build && npm run check:share # share target and offline, 5 checks
 ```
 
