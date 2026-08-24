@@ -6,3 +6,5 @@ dev-dist/
 .env*
 /*.png
 /public/webmscore/
+/keyway.bundle
+tsconfig.tsbuildinfo
