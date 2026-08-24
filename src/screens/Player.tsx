@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import Keyboard, { windowStartFor } from '../components/Keyboard'
 import Notation from '../components/Notation'
 import { getPiece, putPiece } from '../lib/db'
 import { checkPitchMapping, readMusicXmlText } from '../lib/musicxml'
 import { noteName } from '../lib/notes'
 import type { PieceRecord, Step } from '../types'
+
+const EMPTY: Set<number> = new Set()
 
 export default function Player() {
   const { id } = useParams<{ id: string }>()
@@ -16,6 +19,7 @@ export default function Player() {
   const [warning, setWarning] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [stepIndex, setStepIndex] = useState(0)
+  const [windowStart, setWindowStart] = useState(48) // C3, so C4 sits mid-keyboard
 
   useEffect(() => {
     let cancelled = false
@@ -56,6 +60,10 @@ export default function Player() {
 
   const step = steps?.[stepIndex]
 
+  useEffect(() => {
+    setWindowStart((previous) => windowStartFor(step?.notes ?? [], previous))
+  }, [step])
+
   return (
     <div className="screen">
       <div className="header">
@@ -81,6 +89,13 @@ export default function Player() {
           {step ? step.notes.map(noteName).join(' · ') : steps ? 'done' : '…'}
         </span>
       </div>
+
+      <Keyboard
+        windowStart={windowStart}
+        expected={step?.notes ?? []}
+        held={EMPTY}
+        wrong={EMPTY}
+      />
     </div>
   )
 }
