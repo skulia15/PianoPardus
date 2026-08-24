@@ -3,11 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom'
 import Keyboard, { windowStartFor } from '../components/Keyboard'
 import Notation from '../components/Notation'
 import { getPiece, putPiece } from '../lib/db'
+import { useMatcher } from '../lib/matcher'
+import { midiStatusMessage, useMidiInput } from '../lib/midi'
 import { checkPitchMapping, readMusicXmlText } from '../lib/musicxml'
 import { noteName } from '../lib/notes'
 import type { PieceRecord, Step } from '../types'
-
-const EMPTY: Set<number> = new Set()
 
 export default function Player() {
   const { id } = useParams<{ id: string }>()
@@ -18,8 +18,13 @@ export default function Player() {
   const [steps, setSteps] = useState<Step[] | null>(null)
   const [warning, setWarning] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [stepIndex, setStepIndex] = useState(0)
   const [windowStart, setWindowStart] = useState(48) // C3, so C4 sits mid-keyboard
+
+  const matcher = useMatcher(steps)
+  const midi = useMidiInput(
+    useCallback((note: number) => matcher.press(note), [matcher]),
+    useCallback((note: number) => matcher.release(note), [matcher]),
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -46,7 +51,6 @@ export default function Player() {
   const onSteps = useCallback(
     (parsed: Step[]) => {
       setSteps(parsed)
-      setStepIndex(0)
       if (xml) setWarning(checkPitchMapping(xml, parsed))
       // Keep the library's step count honest now that we know it.
       if (record && record.stepCount !== parsed.length) {
@@ -58,11 +62,13 @@ export default function Player() {
     [record, xml],
   )
 
-  const step = steps?.[stepIndex]
+  const step = steps?.[matcher.stepIndex]
 
   useEffect(() => {
     setWindowStart((previous) => windowStartFor(step?.notes ?? [], previous))
   }, [step])
+
+  const midiMessage = midiStatusMessage(midi.status)
 
   return (
     <div className="screen">
@@ -72,15 +78,28 @@ export default function Player() {
         </button>
         <h1>{record?.title ?? 'Loading'}</h1>
         <span className="meta">
-          {steps ? `bar ${step?.measure ?? '–'} · ${stepIndex + 1}/${steps.length}` : null}
+          {steps ? `bar ${step?.measure ?? '–'} · ${Math.min(matcher.stepIndex + 1, steps.length)}/${steps.length}` : null}
         </span>
       </div>
 
       {error && <div className="banner wrong">{error}</div>}
       {warning && <div className="banner wrong">{warning}</div>}
+      {midiMessage && (
+        <div className="banner">
+          <span className="dim">{midiMessage}</span>
+          <button className="secondary" onClick={() => void midi.connect()}>
+            Connect keyboard
+          </button>
+        </div>
+      )}
 
       {xml && !error && (
-        <Notation xml={xml} cursorIndex={step?.osmdCursorIndex} onSteps={onSteps} onError={setError} />
+        <Notation
+          xml={xml}
+          cursorIndex={step?.osmdCursorIndex}
+          onSteps={onSteps}
+          onError={setError}
+        />
       )}
 
       <div className="readout">
@@ -88,14 +107,24 @@ export default function Player() {
         <span className="readout-notes">
           {step ? step.notes.map(noteName).join(' · ') : steps ? 'done' : '…'}
         </span>
+        <span className="readout-errors dim">{matcher.errors > 0 ? `${matcher.errors} wrong` : ''}</span>
       </div>
 
       <Keyboard
         windowStart={windowStart}
         expected={step?.notes ?? []}
-        held={EMPTY}
-        wrong={EMPTY}
+        held={matcher.held}
+        wrong={matcher.wrong}
+        flash={matcher.flash}
+        onPress={matcher.press}
+        onRelease={matcher.release}
       />
+
+      <div className="controls">
+        <button className="secondary" onClick={matcher.restart}>
+          Restart
+        </button>
+      </div>
     </div>
   )
 }

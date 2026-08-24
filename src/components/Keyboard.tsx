@@ -36,6 +36,7 @@ export default function Keyboard({
   expected,
   held,
   wrong,
+  flash,
   onPress,
   onRelease,
 }: {
@@ -43,6 +44,7 @@ export default function Keyboard({
   expected: number[]
   held: Set<number>
   wrong: Set<number>
+  flash: Set<number>
   onPress?: (note: number) => void
   onRelease?: (note: number) => void
 }) {
@@ -68,6 +70,7 @@ export default function Keyboard({
 
   function stateFor(note: number): string {
     if (wrong.has(note)) return 'wrong'
+    if (flash.has(note)) return 'correct'
     if (expectedSet.has(note)) return held.has(note) ? 'correct' : 'expected'
     if (held.has(note)) return 'held'
     return ''

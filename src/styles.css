@@ -291,3 +291,16 @@ code {
 
 .offscreen.left { left: 2px; }
 .offscreen.right { right: 2px; }
+
+.readout-errors { margin-left: auto; font-size: 13px; }
+
+.controls {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.controls button { min-height: 44px; }

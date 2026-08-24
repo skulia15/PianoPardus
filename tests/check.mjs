@@ -44,6 +44,26 @@ async function importFixture(page, file) {
   await page.locator('.piece-title').first().waitFor()
 }
 
+
+const readout = (page) => page.locator('.readout-notes').textContent()
+
+async function play(page, notes) {
+  await page.evaluate((list) => window.__midi.play(list), notes)
+}
+
+async function checkReadout(page, label, expected) {
+  try {
+    await page.waitForFunction(
+      (text) => document.querySelector('.readout-notes')?.textContent === text,
+      expected,
+      { timeout: 3000 },
+    )
+  } catch {
+    // Fall through to check() so the mismatch is reported rather than thrown.
+  }
+  check(label, await readout(page), expected)
+}
+
 async function main() {
   const server = await startServer()
   // CHROMIUM_PATH lets this run against a Chromium that is already on the
@@ -71,8 +91,32 @@ async function main() {
     check('header counts five steps', (await page.locator('.header .meta').textContent()).includes('1/5'), true)
     check('notation rendered', await page.locator('.notation svg').count() > 0, true)
 
+    check('one key highlighted for a single-note step', await page.locator('.key.expected').count(), 1)
+
+    // --- Matching engine --------------------------------------------------
+    await play(page, [61]) // C#4 against an expected C4
+    check('a wrong note does not advance', await readout(page), 'C4')
+    check('a wrong note is counted', await page.locator('.readout-errors').textContent(), '1 wrong')
+
+    await play(page, [60])
+    await checkReadout(page, 'the right note advances to D4', 'D4')
+    await play(page, [62])
+    await checkReadout(page, 'step 3 is E4', 'E4')
+    await play(page, [64])
+    await checkReadout(page, 'step 4 is F#4 (alter is applied)', 'F#4')
+    await play(page, [66])
+    await checkReadout(page, 'step 5 is the C major chord', 'C4 · E4 · G4')
+    check('three keys highlighted for a chord', await page.locator('.key.expected').count(), 3)
+
     // SCREENSHOT=player.png node tests/check.mjs — useful when the layout changes.
     if (process.env.SCREENSHOT) await page.screenshot({ path: process.env.SCREENSHOT })
+
+    // Rolled one note at a time, which is how a chord is actually played.
+    await page.evaluate(() => window.__midi.noteOn(60))
+    await page.evaluate(() => window.__midi.noteOn(64))
+    check('a partial chord does not advance', await readout(page), 'C4 · E4 · G4')
+    await page.evaluate(() => window.__midi.noteOn(67))
+    await checkReadout(page, 'completing the chord finishes the piece', 'done')
   } finally {
     await browser.close()
     server.kill('SIGTERM')
