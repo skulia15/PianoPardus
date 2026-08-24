@@ -98,6 +98,7 @@ async function main() {
     check('notation rendered', await page.locator('.notation svg').count() > 0, true)
 
     check('one key highlighted for a single-note step', await page.locator('.key.expected').count(), 1)
+    check('a single note is not given a chord name', await page.locator('.readout-chord').count(), 0)
 
     // --- Matching engine --------------------------------------------------
     await play(page, [61]) // C#4 against an expected C4
@@ -113,6 +114,7 @@ async function main() {
     await play(page, [66])
     await checkReadout(page, 'step 5 is the C major chord', 'C4 · E4 · G4')
     check('three keys highlighted for a chord', await page.locator('.key.expected').count(), 3)
+    check('and the chord is named', await page.locator('.readout-chord').textContent(), 'C')
     await page.waitForTimeout(200) // let the 90ms fill transition settle
     check(
       'all three are actually painted blue, not just classed',
@@ -353,6 +355,31 @@ async function main() {
     })
     check('instrument and part names are recognised as such', titles.missed, [])
     check('real titles containing an instrument word survive', titles.overreach, [])
+
+    // --- Chord naming -----------------------------------------------------
+    const chords = await page.evaluate(async () => {
+      const { chordName } = await import('/src/lib/chords.ts')
+      const cases = [
+        [[60, 64, 67], 'C'],
+        [[60, 63, 67], 'Cm'],
+        [[62, 65, 69], 'Dm'],
+        [[58, 62, 65], 'B♭'],
+        [[64, 67, 72], 'C/E'],
+        [[67, 72, 76], 'C/G'],
+        [[48, 60, 64, 67], 'C'],
+        [[60, 64, 67, 70], 'C7'],
+        [[60, 64, 67, 71], 'Cmaj7'],
+        [[60, 65, 67], 'Csus4'],
+        [[60, 62, 64, 67], 'Cadd9'],
+        [[59, 62, 65, 68], 'Bdim7'],
+        [[60, 62], null],
+        [[60, 61, 62], null],
+      ]
+      return cases
+        .map(([notes, expected]) => ({ notes, expected, actual: chordName(notes) }))
+        .filter((result) => result.actual !== result.expected)
+    })
+    check('chords, inversions, doublings and non-chords', chords, [])
 
     await importFixture(page, 'a-fine-test-piece.mid')
     check(

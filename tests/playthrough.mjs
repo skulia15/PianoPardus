@@ -63,6 +63,8 @@ const report = await page.evaluate(async (limit) => {
   const frame = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)))
 
   let played = 0
+  let namedChords = 0
+  const chordSamples = new Set()
   let hiddenSteps = 0
   let worstHidden = 0
   let worstStep = null
@@ -90,6 +92,12 @@ const report = await page.evaluate(async (limit) => {
       }
     }
 
+    const chord = document.querySelector('.readout-chord')?.textContent
+    if (chord) {
+      namedChords++
+      if (chordSamples.size < 10) chordSamples.add(chord)
+    }
+
     const width = document.querySelectorAll('.key.white').length
     widths[width] = (widths[width] || 0) + 1
     if (lastWidth !== null && width !== lastWidth) resizes++
@@ -102,12 +110,18 @@ const report = await page.evaluate(async (limit) => {
     await frame()
   }
 
-  return { played, hiddenSteps, worstHidden, worstStep, resizes, widths }
+  return { played, hiddenSteps, worstHidden, worstStep, resizes, widths, namedChords, chordSamples: [...chordSamples] }
 }, stopAt)
 
 console.log('played:     ', report.played, 'steps')
 console.log('notes hidden off the keyboard edge:', report.hiddenSteps, 'step(s)', report.worstStep ? `worst: ${JSON.stringify(report.worstStep)}` : '')
 console.log('keyboard resizes:', report.resizes, '| white keys shown:', JSON.stringify(report.widths))
+console.log(
+  'chords named:',
+  `${report.namedChords}/${report.played}`,
+  `(${Math.round((report.namedChords / Math.max(1, report.played)) * 100)}%)`,
+  report.chordSamples.join(' '),
+)
 
 if (stopAt) {
   console.log('stopped at step', report.played, '| next:', await page.locator('.readout-notes').textContent())

@@ -170,6 +170,28 @@ library precisely to avoid the licensing problem, which makes this the third
 deliberate departure, and the reason it is limited to material that is genuinely
 free.
 
+## Chord names
+
+When the notes under the cursor spell a chord, its name appears beside them in
+the step readout — `G`, `C/E`, `C7/G`, `Cm`, `Bdim7`. Inversions come out as
+slash chords, and octaves and doubled notes make no difference, so a G major
+spread across four octaves in both hands still reads as `G`.
+
+A step that does not spell a chord gets no name rather than a wrong one, which
+is most of real piano music: on The Entertainer 27% of steps are named and on
+the Chopin Nocturne 21%, while the Prelude in C — arpeggiated throughout, so
+never more than one note at a time — names nothing at all.
+
+Roots are spelled the way a lead sheet spells them: `B♭m`, never `A♯m`. That
+means the chord name and the note names beside it can disagree in flat keys,
+because the note readout is still generated from MIDI numbers, which only know
+sharps. Reading the notated spelling out of the score would fix both at once and
+has not been done.
+
+The name is in the readout rather than over the staff because putting it there
+means drawing into OSMD's SVG and tracking the cursor through its layout, which
+breaks quietly whenever the layout changes.
+
 ## What a piece gets called
 
 A file's embedded title is used when it has one, and its filename otherwise.
@@ -257,7 +279,7 @@ public.
 ## Verification
 
 ```sh
-npm run check                        # dev server + headless browser, 72 checks
+npm run check                        # dev server + headless browser, 75 checks
 npm run build && npm run check:share # share target and offline, 6 checks
 ```
 
@@ -287,7 +309,8 @@ switched to the roll and back, playback advancing at the score's own tempo and
 sounding notes on a connected instrument, skip back landing on bar starts, a
 multipart share POST exactly as Android sends it, a bundled .mxl unzipping into
 notation, the screen wake lock surviving the page being hidden, a file
-named after its instrument falling back to its filename, and loading and playing
+named after its instrument falling back to its filename, chord naming across
+inversions, doublings and non-chords, and loading and playing
 with the network cut.
 
 **Still needs the phone**, because nothing else can prove it:
@@ -346,6 +369,7 @@ src/
     notation.ts  engraving MIDI into MusicXML via webmscore
     playback.ts  the drift-free step scheduler and the speed control
     titles.ts    telling a piece's name from its instrument's
+    chords.ts    naming the chord under the cursor
     wakelock.ts  keeping the screen on while the player is open
     steps.ts     where a skip back lands
     keys.ts      key geometry and the window, shared by keyboard and roll

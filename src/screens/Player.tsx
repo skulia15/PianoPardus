@@ -6,6 +6,7 @@ import Notation from '../components/Notation'
 import PianoRoll from '../components/PianoRoll'
 import Results from '../components/Results'
 import { getPiece, putPiece } from '../lib/db'
+import { chordName } from '../lib/chords'
 import { INITIAL_WINDOW, windowFor } from '../lib/keys'
 import { useMatcher } from '../lib/matcher'
 import { midiStatusMessage, useMidi } from '../lib/midi'
@@ -133,6 +134,7 @@ export default function Player() {
   const windowRef = useRef(INITIAL_WINDOW)
   windowRef.current = windowFor(step?.notes ?? [], windowRef.current)
 
+  const chord = step ? chordName(step.notes) : null
   const midiMessage = midiStatusMessage(midi.status)
   const engraved = record?.source === 'midi' && Boolean(record.notationXml)
   const notationHidden = hideOverride ?? record?.notationHidden ?? false
@@ -236,6 +238,7 @@ export default function Player() {
         <span className="readout-notes">
           {step ? step.notes.map(noteName).join(' · ') : steps ? 'done' : '…'}
         </span>
+        {chord && <span className="readout-chord">{chord}</span>}
         <span className="readout-errors dim">
           {matcher.errors > 0 ? `${matcher.errors} wrong` : ''}
         </span>
