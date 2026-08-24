@@ -56,6 +56,22 @@ async function play(page, notes) {
   await page.evaluate((list) => window.__midi.play(list), notes)
 }
 
+const soundButton = (page) => page.locator('.controls button', { hasText: 'Sound:' })
+
+async function setSound(page, mode) {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if ((await soundButton(page).textContent()).includes(mode)) return
+    await soundButton(page).click()
+  }
+  throw new Error(`could not select sound mode ${mode}`)
+}
+
+/** Playback stops itself at the last step, so there may be nothing to stop. */
+async function stopIfPlaying(page) {
+  const stop = page.locator('button[aria-label="Stop playing"]')
+  if ((await stop.count()) > 0) await stop.click()
+}
+
 async function checkReadout(page, label, expected) {
   try {
     await page.waitForFunction(
@@ -174,6 +190,7 @@ async function main() {
     check('skip back at the very start stays put', await readout(page), 'C4')
 
     // --- Playback ---------------------------------------------------------
+    await setSound(page, 'keyboard')
     await page.evaluate(() => window.__midi.clearSent())
     await page.locator('button[aria-label="Play the piece"]').click()
     await checkReadout(page, 'playback advances with no input at all', 'D4')
@@ -221,13 +238,21 @@ async function main() {
     await page.waitForTimeout(1200)
     check('stopping halts it where it stands', await readout(page), stoppedAt)
 
-    await page.locator('.controls button', { hasText: 'Sound' }).click()
+    await setSound(page, 'off')
     await page.evaluate(() => window.__midi.clearSent())
     await page.locator('button[aria-label="Play the piece"]').click()
     await page.waitForTimeout(1200)
     check('sound off plays silently', await page.evaluate(() => window.__midi.noteOnsSent().length), 0)
-    await page.locator('button[aria-label="Stop playing"]').click()
-    await page.locator('.controls button', { hasText: 'Sound' }).click()
+    await stopIfPlaying(page)
+
+    await setSound(page, 'phone')
+    await page.locator('button[aria-label="Back to the start of the bar"]').click()
+    await page.locator('button[aria-label="Back to the start of the bar"]').click()
+    await page.evaluate(() => window.__midi.clearSent())
+    await page.locator('button[aria-label="Play the piece"]').click()
+    await page.waitForTimeout(1200)
+    check('phone sound does not go to the instrument', await page.evaluate(() => window.__midi.noteOnsSent().length), 0)
+    await stopIfPlaying(page)
 
     // A quarter note at this score's tempo is ~600 ms, so a quarter of that
     // speed must not have moved within 900 ms.
@@ -355,6 +380,38 @@ async function main() {
     })
     check('instrument and part names are recognised as such', titles.missed, [])
     check('real titles containing an instrument word survive', titles.overreach, [])
+
+    // --- The phone's own piano voice --------------------------------------
+    // Rendered offline and measured, because "it did not throw" is not the same
+    // as "it made a sound".
+    const audio = await page.evaluate(async () => {
+      const { createSynth } = await import('/src/lib/synth.ts')
+      const rate = 44100
+      const context = new OfflineAudioContext(1, rate, rate)
+      createSynth(context).play([69], 500) // A4, which is 440 Hz
+      const samples = (await context.startRendering()).getChannelData(0)
+
+      let sum = 0
+      for (const sample of samples) sum += sample * sample
+
+      // Goertzel: how much of the signal sits at a given frequency.
+      const energyAt = (frequency) => {
+        const coefficient = 2 * Math.cos((2 * Math.PI * frequency) / rate)
+        let previous = 0
+        let beforeThat = 0
+        for (const sample of samples) {
+          const current = sample + coefficient * previous - beforeThat
+          beforeThat = previous
+          previous = current
+        }
+        return Math.sqrt(Math.abs(previous ** 2 + beforeThat ** 2 - coefficient * previous * beforeThat))
+      }
+
+      return { rms: Math.sqrt(sum / samples.length), at440: energyAt(440), at700: energyAt(700) }
+    })
+    check('the phone voice actually produces sound', audio.rms > 0.01, true)
+    check('at the pitch it was asked for', audio.at440 > audio.at700 * 3, true)
+    if (!(audio.at440 > audio.at700 * 3)) console.log(`      rms ${audio.rms} 440Hz ${audio.at440} 700Hz ${audio.at700}`)
 
     // --- Chord naming -----------------------------------------------------
     const chords = await page.evaluate(async () => {

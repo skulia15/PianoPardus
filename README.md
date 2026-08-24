@@ -253,12 +253,24 @@ compounds. Measured against a 200 bpm arrangement, playback ran a tenth of a
 piece behind within ten seconds. Anchored, it now hits the same step at the same
 second as the source file.
 
-**Sound comes out of your keyboard, not the phone.** The notes are sent to the
-MIDI output, so a digital piano plays them with its own voice, which is both the
-nicest possible sound and free. A controller with no sound engine will play
-silently — the app has no synthesiser, and a soundfont is another few megabytes
-for something the instrument in front of you already does. The Sound button
-appears only when there is an output to send to.
+**Sound** cycles between three settings:
+
+- **phone** (the default) plays through the phone's own speaker. The voice is
+  synthesised rather than sampled: a sine carrier with a sine modulator at three
+  times the frequency, whose depth collapses in a third of a second. That gives
+  the bright attack and mellow tail that makes a note sound struck rather than
+  beeped, and low notes are given a longer ring, as they have on a real
+  instrument. It is not a concert grand — a convincing sampled piano is
+  megabytes, and this only has to answer "how does the piece go".
+- **keyboard** sends the notes to the MIDI output instead, so a digital piano
+  plays them in its own much better voice for no bytes at all. Offered only when
+  there is an output to send to; a controller with no sound engine has none.
+- **off**.
+
+The choice is remembered. Verified by rendering a note through an
+`OfflineAudioContext` and measuring it, since "it did not throw" is not the same
+as "it made a sound": the buffer has to be audibly loud and its energy has to sit
+at the pitch that was asked for.
 
 While the piece is playing itself, your input is ignored: you are listening, and
 a fumbled note then should not count against you.
@@ -306,7 +318,7 @@ public.
 ## Verification
 
 ```sh
-npm run check                        # dev server + headless browser, 83 checks
+npm run check                        # dev server + headless browser, 86 checks
 npm run build && npm run check:share # share target and offline, 6 checks
 ```
 
@@ -338,7 +350,7 @@ multipart share POST exactly as Android sends it, a bundled .mxl unzipping into
 notation, the screen wake lock surviving the page being hidden, a file
 named after its instrument falling back to its filename, chord naming across
 inversions, doublings and non-chords, a piece being shifted and folded onto a
-shorter keyboard, and loading and playing
+shorter keyboard, the phone's voice producing sound at the right pitch, and loading and playing
 with the network cut.
 
 **Still needs the phone**, because nothing else can prove it:
@@ -399,6 +411,7 @@ src/
     titles.ts    telling a piece's name from its instrument's
     chords.ts    naming the chord under the cursor
     range.ts     fitting a piece to the keyboard you own
+    synth.ts     the phone's own piano voice
     wakelock.ts  keeping the screen on while the player is open
     steps.ts     where a skip back lands
     keys.ts      key geometry and the window, shared by keyboard and roll

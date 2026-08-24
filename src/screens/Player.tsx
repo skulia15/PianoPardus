@@ -14,6 +14,7 @@ import { parseMidiSteps } from '../lib/midifile'
 import { checkPitchMapping, readMusicXmlText } from '../lib/musicxml'
 import { noteName } from '../lib/notes'
 import { describeFit, fitStepsToRange, loadRange } from '../lib/range'
+import { loadSoundMode, saveSoundMode, useSynth, type SoundMode } from '../lib/synth'
 import { gapMs, SPEEDS, usePlayback } from '../lib/playback'
 import { skipBackIndex } from '../lib/steps'
 import { useWakeLock } from '../lib/wakelock'
@@ -31,7 +32,7 @@ export default function Player() {
   // null means "whatever the piece was left set to".
   const [hideOverride, setHideOverride] = useState<boolean | null>(null)
   const [speed, setSpeed] = useState(1)
-  const [echo, setEcho] = useState(true)
+  const [soundMode, setSoundMode] = useState<SoundMode>(loadSoundMode)
 
   // Read once per visit: the setting lives on the library screen, and coming
   // back here remounts this.
@@ -40,6 +41,7 @@ export default function Player() {
   const steps = fit?.steps ?? null
 
   const matcher = useMatcher(steps)
+  const synth = useSynth()
 
   // Input is ignored while the piece is playing itself: you are listening, and a
   // fumbled note then should not count against you.
@@ -60,9 +62,11 @@ export default function Player() {
     onAdvance: useCallback(
       (index: number, holdMs: number) => {
         matcher.jumpTo(index)
-        if (echo && steps) midi.playNotes(steps[index].notes, holdMs)
+        if (!steps) return
+        if (soundMode === 'phone') synth.play(steps[index].notes, holdMs)
+        else if (soundMode === 'keyboard') midi.playNotes(steps[index].notes, holdMs)
       },
-      [matcher, echo, steps, midi],
+      [matcher, soundMode, steps, midi, synth],
     ),
   })
   playingRef.current = playback.playing
@@ -150,11 +154,28 @@ export default function Player() {
   function togglePlayback() {
     if (playback.playing) {
       playback.stop()
+      synth.stopAll()
       midi.silence()
       return
     }
+
     playback.play()
-    if (echo && step && steps) midi.playNotes(step.notes, gapMs(steps, matcher.stepIndex, speed))
+    if (!step || !steps) return
+
+    // Sound the step you are already on, so playing starts with a note rather
+    // than a rest.
+    const hold = gapMs(steps, matcher.stepIndex, speed)
+    if (soundMode === 'phone') synth.play(step.notes, hold)
+    else if (soundMode === 'keyboard') midi.playNotes(step.notes, hold)
+  }
+
+  function cycleSound() {
+    const modes: SoundMode[] = midi.hasOutput ? ['phone', 'keyboard', 'off'] : ['phone', 'off']
+    const next = modes[(modes.indexOf(soundMode) + 1) % modes.length]
+    setSoundMode(next)
+    saveSoundMode(next)
+    if (next !== 'phone') synth.stopAll()
+    if (next !== 'keyboard') midi.silence()
   }
 
   function cycleSpeed() {
@@ -306,11 +327,9 @@ export default function Player() {
             {notationHidden ? 'Notation' : 'Roll'}
           </button>
         )}
-        {midi.hasOutput && (
-          <button className="secondary" onClick={() => setEcho((current) => !current)}>
-            {echo ? 'Sound on' : 'Sound off'}
-          </button>
-        )}
+        <button className="secondary" onClick={cycleSound}>
+          Sound: {soundMode}
+        </button>
       </div>
 
       {(fitNote || midi.status === 'connected') && (
