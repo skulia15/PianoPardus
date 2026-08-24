@@ -8,10 +8,12 @@ import Results from '../components/Results'
 import { getPiece, putPiece } from '../lib/db'
 import { INITIAL_WINDOW, windowFor } from '../lib/keys'
 import { useMatcher } from '../lib/matcher'
-import { midiStatusMessage, useMidiInput } from '../lib/midi'
+import { midiStatusMessage, useMidi } from '../lib/midi'
 import { parseMidiSteps } from '../lib/midifile'
 import { checkPitchMapping, readMusicXmlText } from '../lib/musicxml'
 import { noteName } from '../lib/notes'
+import { gapMs, SPEEDS, usePlayback } from '../lib/playback'
+import { skipBackIndex } from '../lib/steps'
 import type { PieceRecord, Step } from '../types'
 
 export default function Player() {
@@ -25,12 +27,38 @@ export default function Player() {
   const [error, setError] = useState<string | null>(null)
   // null means "whatever the piece was left set to".
   const [hideOverride, setHideOverride] = useState<boolean | null>(null)
+  const [speed, setSpeed] = useState(1)
+  const [echo, setEcho] = useState(true)
 
   const matcher = useMatcher(steps)
-  const midi = useMidiInput(
-    useCallback((note: number) => matcher.press(note), [matcher]),
-    useCallback((note: number) => matcher.release(note), [matcher]),
+
+  // Input is ignored while the piece is playing itself: you are listening, and a
+  // fumbled note then should not count against you.
+  const playingRef = useRef(false)
+  const midi = useMidi(
+    useCallback((note: number) => {
+      if (!playingRef.current) matcher.press(note)
+    }, [matcher]),
+    useCallback((note: number) => {
+      if (!playingRef.current) matcher.release(note)
+    }, [matcher]),
   )
+
+  const playback = usePlayback({
+    steps,
+    stepIndex: matcher.stepIndex,
+    speed,
+    onAdvance: useCallback(
+      (index: number, holdMs: number) => {
+        matcher.jumpTo(index)
+        if (echo && steps) midi.playNotes(steps[index].notes, holdMs)
+      },
+      [matcher, echo, steps, midi],
+    ),
+  })
+  playingRef.current = playback.playing
+
+  useEffect(() => () => midi.silence(), [midi.silence])
 
   useEffect(() => {
     let cancelled = false
@@ -103,6 +131,24 @@ export default function Player() {
   const midiMessage = midiStatusMessage(midi.status)
   const engraved = record?.source === 'midi' && Boolean(record.notationXml)
   const notationHidden = hideOverride ?? record?.notationHidden ?? false
+
+  function togglePlayback() {
+    if (playback.playing) {
+      playback.stop()
+      midi.silence()
+      return
+    }
+    playback.play()
+    if (echo && step && steps) midi.playNotes(step.notes, gapMs(steps, matcher.stepIndex, speed))
+  }
+
+  function cycleSpeed() {
+    setSpeed((current) => SPEEDS[(SPEEDS.indexOf(current) + 1) % SPEEDS.length])
+  }
+
+  function skipBack() {
+    if (steps) matcher.jumpTo(skipBackIndex(steps, matcher.stepIndex))
+  }
 
   function toggleNotation() {
     const next = !notationHidden
@@ -201,6 +247,31 @@ export default function Player() {
       />
 
       <div className="controls">
+        <button
+          className="icon"
+          onClick={skipBack}
+          disabled={!steps}
+          aria-label="Back to the start of the bar"
+        >
+          ⏮
+        </button>
+        <button
+          className="icon"
+          onClick={togglePlayback}
+          disabled={!steps || steps.length === 0}
+          aria-label={playback.playing ? 'Stop playing' : 'Play the piece'}
+        >
+          {playback.playing ? '⏸' : '▶'}
+        </button>
+        <button className="speed" onClick={cycleSpeed} aria-label="Playback speed">
+          {speed}×
+        </button>
+        {steps && steps.length > 0 && (
+          <JumpControl steps={steps} stepIndex={matcher.stepIndex} onJump={matcher.jumpTo} />
+        )}
+      </div>
+
+      <div className="controls">
         <button className="secondary" onClick={matcher.restart}>
           Restart
         </button>
@@ -209,8 +280,10 @@ export default function Player() {
             {notationHidden ? 'Notation' : 'Roll'}
           </button>
         )}
-        {steps && steps.length > 0 && (
-          <JumpControl steps={steps} stepIndex={matcher.stepIndex} onJump={matcher.jumpTo} />
+        {midi.hasOutput && (
+          <button className="secondary" onClick={() => setEcho((current) => !current)}>
+            {echo ? 'Sound on' : 'Sound off'}
+          </button>
         )}
       </div>
 

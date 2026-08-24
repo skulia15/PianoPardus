@@ -4,6 +4,9 @@ import type { Step } from '../types'
 
 const STEP_SEMITONES: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }
 
+const QUARTERS_PER_WHOLE = 4
+const DEFAULT_BPM = 100
+
 /**
  * Returns the MusicXML text for a piece. `.mxl` files are zip archives — the
  * real score is named by META-INF/container.xml. MuseScore exports default to
@@ -65,10 +68,22 @@ export function buildSteps(osmd: OpenSheetMusicDisplay): Step[] {
   const steps: Step[] = []
   let cursorIndex = 0
 
+  // Elapsed time is accumulated rather than read off, because the tempo can
+  // change mid-score. The enrolled timestamp counts in whole notes and follows
+  // the played order, so repeats add time instead of rewinding it.
+  let seconds = 0
+  let lastWholes = 0
+  let lastBpm = cursor.Iterator.CurrentBpm || DEFAULT_BPM
+
   // Repeats can in principle loop; this is a runaway guard, not a real limit.
   const maxPositions = 50_000
 
   while (!cursor.Iterator.EndReached && cursorIndex < maxPositions) {
+    const wholes = cursor.Iterator.CurrentEnrolledTimestamp?.RealValue ?? lastWholes
+    seconds += Math.max(0, wholes - lastWholes) * QUARTERS_PER_WHOLE * (60 / lastBpm)
+    lastWholes = wholes
+    lastBpm = cursor.Iterator.CurrentBpm || lastBpm
+
     const pitches = new Set<number>()
 
     for (const note of cursor.NotesUnderCursor()) {
@@ -84,6 +99,7 @@ export function buildSteps(osmd: OpenSheetMusicDisplay): Step[] {
         notes: [...pitches].sort((a, b) => a - b),
         measure: cursor.Iterator.CurrentMeasure?.MeasureNumber,
         osmdCursorIndex: cursorIndex,
+        timeSeconds: seconds,
       })
     }
 

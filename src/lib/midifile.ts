@@ -23,7 +23,7 @@ export async function parseMidiSteps(blob: Blob): Promise<Step[]> {
     if (!group || note.time - groupStart > CHORD_WINDOW_SECONDS) {
       group = new Set()
       groupStart = note.time
-      steps.push({ index: steps.length, notes: [] })
+      steps.push({ index: steps.length, notes: [], timeSeconds: note.time })
     }
     group.add(note.midi)
     steps[steps.length - 1].notes = [...group].sort((a, b) => a - b)

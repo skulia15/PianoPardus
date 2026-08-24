@@ -12,12 +12,14 @@ export type MidiStatus =
  * Web MIDI, used directly. Handlers are kept in refs so re-renders never
  * detach a live keyboard.
  */
-export function useMidiInput(
+export function useMidi(
   onNoteOn: (note: number, velocity: number) => void,
   onNoteOff: (note: number) => void,
 ) {
   const [status, setStatus] = useState<MidiStatus>('connecting')
   const [inputNames, setInputNames] = useState<string[]>([])
+  const [outputNames, setOutputNames] = useState<string[]>([])
+  const outputsRef = useRef<MIDIOutput[]>([])
 
   const noteOnRef = useRef(onNoteOn)
   const noteOffRef = useRef(onNoteOff)
@@ -51,6 +53,18 @@ export function useMidiInput(
       })
       setInputNames(names)
       setStatus(names.length > 0 ? 'connected' : 'no-inputs')
+
+      // Most digital pianos also expose an output with their own sound engine,
+      // which is the nicest possible playback: the piece comes out of the
+      // instrument in front of you, and it costs nothing to send.
+      const outputs: MIDIOutput[] = []
+      const outputLabels: string[] = []
+      access.outputs.forEach((output) => {
+        outputs.push(output)
+        outputLabels.push(output.name ?? 'MIDI output')
+      })
+      outputsRef.current = outputs
+      setOutputNames(outputLabels)
     },
     [handleMessage],
   )
@@ -86,7 +100,33 @@ export function useMidiInput(
     }
   }, [connect])
 
-  return { status, inputNames, connect }
+  /** Sounds a step on any connected instrument. Silent if there is no output. */
+  const playNotes = useCallback((notes: number[], durationMs: number) => {
+    const offAt = performance.now() + Math.max(60, durationMs)
+    for (const output of outputsRef.current) {
+      for (const note of notes) output.send([0x90, note, 90])
+      for (const note of notes) output.send([0x80, note, 0], offAt)
+    }
+  }, [])
+
+  /** Cuts anything still sounding, so stopping playback does not leave a note on. */
+  const silence = useCallback(() => {
+    for (const output of outputsRef.current) {
+      for (let channel = 0; channel < 16; channel++) {
+        output.send([0xb0 | channel, 123, 0]) // all notes off
+      }
+    }
+  }, [])
+
+  return {
+    status,
+    inputNames,
+    outputNames,
+    hasOutput: outputNames.length > 0,
+    connect,
+    playNotes,
+    silence,
+  }
 }
 
 export function midiStatusMessage(status: MidiStatus): string | null {

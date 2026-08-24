@@ -20,11 +20,16 @@ All ten steps of the build order are implemented. What is verified in a headless
 browser, and what still needs the physical device, is listed under
 [Verification](#verification).
 
-One deliberate departure from the spec: §7.2 has MIDI pieces hide the notation
-pane and show an upcoming-notes list. They are engraved into notation instead —
-see [Notation from MIDI](#notation-from-midi) — and the list has become a piano
-roll, which is what a MIDI piece falls back to when engraving fails or is turned
-off.
+Two deliberate departures from the spec:
+
+- §7.2 has MIDI pieces hide the notation pane and show an upcoming-notes list.
+  They are engraved into notation instead — see
+  [Notation from MIDI](#notation-from-midi) — and the list has become a piano
+  roll, which is what a MIDI piece falls back to when engraving fails or is
+  turned off.
+- §3 rules out tempo entirely. There is now a playback mode with a speed
+  control, which needs one — see [Playback](#playback). It is still not
+  tempo-*following*: nothing about your own timing is ever measured or scored.
 
 ## Running it
 
@@ -100,8 +105,8 @@ it needs the same SPA fallback.
 3. **Finish.** The last step opens the results screen: accuracy, wrong notes,
    elapsed time.
 
-Restart and a bar-jump slider are under the keyboard. There is no play/pause —
-the app is always waiting for input.
+Under the keyboard: skip back, play, speed, and a bar-jump slider, with Restart
+below them.
 
 An engraved MIDI piece also gets a **Roll** button, which swaps the notation for
 a piano roll: time running upwards, pitch across, on exactly the keyboard's
@@ -124,6 +129,35 @@ laziness: on a real two-hand arrangement, letting the window narrow again resize
 the keyboard on a fifth of all steps, and a keyboard that stays where you learned
 it reads better than one that is always the ideal width. Growing only, the same
 piece resizes twice from beginning to end.
+
+## Playback
+
+**▶** plays the piece to you instead of waiting for you, and **⏮** skips back to
+the start of the bar you are in — or to the previous bar if you are already at
+its start, which is what "again" usually means. The speed button cycles
+1× → 0.25× → 0.5× → 0.75×.
+
+Playback follows the score's own rhythm, not a metronomic tick: steps carry the
+time they sound, taken from the enrolled cursor timestamp and the tempo for
+MusicXML, and straight off the note times for MIDI. Half a bar of rests takes
+half a bar.
+
+Each step is scheduled against an absolute anchor rather than chained off the
+previous timeout. That looks like a pointless distinction and is not: timer
+granularity and rendering cost a few milliseconds per step, and chained, that
+compounds. Measured against a 200 bpm arrangement, playback ran a tenth of a
+piece behind within ten seconds. Anchored, it now hits the same step at the same
+second as the source file.
+
+**Sound comes out of your keyboard, not the phone.** The notes are sent to the
+MIDI output, so a digital piano plays them with its own voice, which is both the
+nicest possible sound and free. A controller with no sound engine will play
+silently — the app has no synthesiser, and a soundfont is another few megabytes
+for something the instrument in front of you already does. The Sound button
+appears only when there is an output to send to.
+
+While the piece is playing itself, your input is ignored: you are listening, and
+a fumbled note then should not count against you.
 
 ## Notation from MIDI
 
@@ -168,7 +202,7 @@ public.
 ## Verification
 
 ```sh
-npm run check                        # dev server + headless browser, 42 checks
+npm run check                        # dev server + headless browser, 59 checks
 npm run build && npm run check:share # share target and offline, 6 checks
 ```
 
@@ -194,8 +228,10 @@ Covered: the `halfTone + 12` conversion (middle C comes out as MIDI 60),
 `<alter>` handling, chord grouping in both formats, wrong notes counting without
 advancing, partial chords not advancing, accuracy arithmetic, bar jumping, the
 keyboard widening for a four-octave step, a MIDI file being engraved and
-switched to the roll and back, a multipart share POST exactly as Android sends
-it, and loading and playing with the network cut.
+switched to the roll and back, playback advancing at the score's own tempo and
+sounding notes on a connected instrument, skip back landing on bar starts, a
+multipart share POST exactly as Android sends it, and loading and playing with
+the network cut.
 
 **Still needs the phone**, because nothing else can prove it:
 
@@ -215,9 +251,10 @@ serve it over HTTPS, tap Connect MIDI, play a key.
 Deliberate, from the spec:
 
 - **No iOS.** Safari has no Web MIDI. This will not change.
-- **No tempo, rhythm or dynamics.** A step is one vertical slice of the score;
-  play its notes in any order and it advances. Velocity and the sustain pedal are
-  ignored.
+- **No rhythm or dynamics scoring.** A step is one vertical slice of the score;
+  play its notes in any order and it advances, in your own time. Velocity and the
+  sustain pedal are ignored. Tempo exists only for playback, never for judging
+  you.
 - **Octave-exact matching.** No enharmonic or transposition cleverness.
 - **Repeated notes need a re-press.** The held set is cleared when a step
   completes, so the same note in consecutive steps has to be released and played
@@ -249,6 +286,8 @@ src/
     musicxml.ts  .mxl unzip, cursor walk to steps, pitch-mapping check
     midifile.ts  @tonejs/midi flatten and chord grouping
     notation.ts  engraving MIDI into MusicXML via webmscore
+    playback.ts  the drift-free step scheduler and the speed control
+    steps.ts     where a skip back lands
     keys.ts      key geometry and the window, shared by keyboard and roll
     matcher.ts   the entire matching engine
     midi.ts      Web MIDI input

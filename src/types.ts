@@ -6,6 +6,11 @@ export type Step = {
   notes: number[] // MIDI note numbers, sorted, sounded together
   measure?: number
   osmdCursorIndex?: number // MusicXML only
+  /**
+   * When this step sounds, in seconds from the start, at the score's own tempo.
+   * Used only for playback — the matching engine has no notion of time.
+   */
+  timeSeconds?: number
 }
 
 export type Piece = {

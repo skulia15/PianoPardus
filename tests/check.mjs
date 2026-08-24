@@ -152,6 +152,91 @@ async function main() {
     await page.locator('.jump input').fill('1')
     await checkReadout(page, 'jumping back to bar 1 works too', 'C4')
 
+    // --- Skip back --------------------------------------------------------
+    await play(page, [60])
+    await play(page, [62])
+    await checkReadout(page, 'two notes in, part way through bar 1', 'E4')
+
+    await page.locator('button[aria-label="Back to the start of the bar"]').click()
+    await checkReadout(page, 'skip back returns to the start of the bar', 'C4')
+
+    await page.locator('.jump input').fill('2')
+    await checkReadout(page, 'at the start of bar 2', 'C4 · E4 · G4')
+    await page.locator('button[aria-label="Back to the start of the bar"]').click()
+    await checkReadout(page, 'skip back from a bar start goes to the previous bar', 'C4')
+
+    await page.locator('button[aria-label="Back to the start of the bar"]').click()
+    await page.waitForTimeout(150)
+    check('skip back at the very start stays put', await readout(page), 'C4')
+
+    // --- Playback ---------------------------------------------------------
+    await page.evaluate(() => window.__midi.clearSent())
+    await page.locator('button[aria-label="Play the piece"]').click()
+    await checkReadout(page, 'playback advances with no input at all', 'D4')
+
+    check(
+      'playback sounds the notes on a connected instrument',
+      await page.evaluate(() => window.__midi.noteOnsSent().map((message) => message.data[1])),
+      [60, 62],
+    )
+    check(
+      'and schedules the note-offs rather than leaving notes on',
+      await page.evaluate(() =>
+        window.__midi.sent.some((m) => (m.data[0] & 0xf0) === 0x80 && m.timestamp !== null),
+      ),
+      true,
+    )
+
+    // Four quarter notes at this score's tempo is about 2.4 s. A fixed tick
+    // would come in around 1.6 s, so this distinguishes following the score's
+    // rhythm from merely ticking — and catches the schedule drifting.
+    const startedAt = Date.now()
+    await page.waitForFunction(
+      () => document.querySelector('.readout-notes')?.textContent === 'C4 · E4 · G4',
+      null,
+      { timeout: 10_000 },
+    )
+    const elapsed = Date.now() - startedAt
+    check("playback follows the score's own tempo", elapsed > 1500 && elapsed < 3000, true)
+    if (elapsed <= 1500 || elapsed >= 3000) console.log(`      elapsed ${elapsed}ms, expected ~1800`)
+
+    check(
+      'playback stops itself at the last step',
+      await page.locator('button[aria-label="Play the piece"]').count(),
+      1,
+    )
+
+    // Stopping part way leaves the cursor where it stands.
+    await page.locator('button[aria-label="Back to the start of the bar"]').click()
+    await page.locator('button[aria-label="Back to the start of the bar"]').click()
+    await checkReadout(page, 'skipped back to the start again', 'C4')
+    await page.locator('button[aria-label="Play the piece"]').click()
+    await checkReadout(page, 'playing again from the start', 'D4')
+    await page.locator('button[aria-label="Stop playing"]').click()
+    const stoppedAt = await readout(page)
+    await page.waitForTimeout(1200)
+    check('stopping halts it where it stands', await readout(page), stoppedAt)
+
+    await page.locator('.controls button', { hasText: 'Sound' }).click()
+    await page.evaluate(() => window.__midi.clearSent())
+    await page.locator('button[aria-label="Play the piece"]').click()
+    await page.waitForTimeout(1200)
+    check('sound off plays silently', await page.evaluate(() => window.__midi.noteOnsSent().length), 0)
+    await page.locator('button[aria-label="Stop playing"]').click()
+    await page.locator('.controls button', { hasText: 'Sound' }).click()
+
+    // A quarter note at this score's tempo is ~600 ms, so a quarter of that
+    // speed must not have moved within 900 ms.
+    await page.locator('.speed').click()
+    check('the speed control cycles', await page.locator('.speed').textContent(), '0.25×')
+    await page.locator('button[aria-label="Back to the start of the bar"]').click()
+    await page.locator('button[aria-label="Back to the start of the bar"]').click()
+    await checkReadout(page, 'back at the start for the speed check', 'C4')
+    await page.locator('button[aria-label="Play the piece"]').click()
+    await page.waitForTimeout(900)
+    check('quarter speed really is slower', await readout(page), 'C4')
+    await page.locator('button[aria-label="Stop playing"]').click()
+
     // --- MIDI file path ---------------------------------------------------
     await importFixture(page, 'scale-test.mid')
     check('MIDI file takes its title from the header', await page.getByText('Scale Test').count(), 1)
