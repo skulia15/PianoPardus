@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import JumpControl from '../components/JumpControl'
 import Keyboard, { windowStartFor } from '../components/Keyboard'
 import Notation from '../components/Notation'
 import Results from '../components/Results'
@@ -137,6 +138,10 @@ export default function Player() {
 
       {record?.source === 'midi' && steps && <Upcoming steps={steps} from={matcher.stepIndex} />}
 
+      {steps?.length === 0 && (
+        <div className="banner wrong">There are no playable notes in this file.</div>
+      )}
+
       <div className="readout">
         <span className="label">next</span>
         <span className="readout-notes">
@@ -159,7 +164,14 @@ export default function Player() {
         <button className="secondary" onClick={matcher.restart}>
           Restart
         </button>
+        {steps && steps.length > 0 && (
+          <JumpControl steps={steps} stepIndex={matcher.stepIndex} onJump={matcher.jumpTo} />
+        )}
       </div>
+
+      {midi.status === 'connected' && (
+        <div className="footnote dim">{midi.inputNames.join(', ')}</div>
+      )}
     </div>
   )
 }

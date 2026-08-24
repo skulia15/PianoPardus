@@ -107,6 +107,18 @@ async function main() {
     await play(page, [66])
     await checkReadout(page, 'step 5 is the C major chord', 'C4 · E4 · G4')
     check('three keys highlighted for a chord', await page.locator('.key.expected').count(), 3)
+    await page.waitForTimeout(200) // let the 90ms fill transition settle
+    check(
+      'all three are actually painted blue, not just classed',
+      await page.evaluate(() => [
+        ...new Set(
+          Array.from(document.querySelectorAll('.key.expected rect')).map(
+            (rect) => getComputedStyle(rect).fill,
+          ),
+        ),
+      ]),
+      ['rgb(76, 125, 255)'],
+    )
 
     // SCREENSHOT=player.png node tests/check.mjs — useful when the layout changes.
     if (process.env.SCREENSHOT) await page.screenshot({ path: process.env.SCREENSHOT })
@@ -128,6 +140,13 @@ async function main() {
     await page.getByText('Play again').click()
     await checkReadout(page, 'play again starts over', 'C4')
     check('play again clears the error count', await page.locator('.readout-errors').textContent(), '')
+
+    // --- Jump to measure --------------------------------------------------
+    await page.locator('.jump input').fill('2')
+    await checkReadout(page, 'jumping to bar 2 moves to its first step', 'C4 · E4 · G4')
+    check('the jump control reads the current bar', await page.locator('.jump .label').textContent(), 'bar 2')
+    await page.locator('.jump input').fill('1')
+    await checkReadout(page, 'jumping back to bar 1 works too', 'C4')
 
     // --- MIDI file path ---------------------------------------------------
     await importFixture(page, 'scale-test.mid')
@@ -154,6 +173,12 @@ async function main() {
     await play(page, [60, 64, 67])
     await page.locator('.accuracy').waitFor({ timeout: 3000 })
     check('a clean run is 100%', await page.locator('.accuracy').textContent(), '100%')
+
+    await page.getByText('Back to library').click()
+    await page.locator('.piece').first().waitFor()
+    check('both pieces are listed', await page.locator('.piece').count(), 2)
+    check('step counts are shown once known', (await page.locator('.piece-meta').first().textContent()).includes('4 steps'), true)
+    if (process.env.SCREENSHOT) await page.screenshot({ path: process.env.SCREENSHOT.replace('.png', '-library.png') })
   } finally {
     await browser.close()
     server.kill('SIGTERM')

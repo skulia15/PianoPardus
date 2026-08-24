@@ -17,6 +17,7 @@ type State = {
 type Action =
   | { type: 'press'; note: number; at: number }
   | { type: 'release'; note: number }
+  | { type: 'jump'; index: number }
   | { type: 'clearWrong' }
   | { type: 'clearFlash' }
   | { type: 'restart' }
@@ -78,6 +79,10 @@ function reduce(steps: Step[], state: State, action: Action): State {
     case 'release':
       return { ...state, held: state.held.filter((note) => note !== action.note) }
 
+    case 'jump':
+      // Errors are kept: jumping around is practising, not starting over.
+      return { ...state, stepIndex: action.index, held: [], wrong: [], flash: [], finishedAt: null }
+
     case 'clearWrong':
       return { ...state, wrong: [] }
 
@@ -99,6 +104,7 @@ export type Matcher = {
   elapsedMs: number
   press: (note: number) => void
   release: (note: number) => void
+  jumpTo: (index: number) => void
   restart: () => void
 }
 
@@ -134,6 +140,7 @@ export function useMatcher(steps: Step[] | null): Matcher {
         state.startedAt === null ? 0 : (state.finishedAt ?? Date.now()) - state.startedAt,
       press: (note: number) => dispatch({ type: 'press', note, at: Date.now() }),
       release: (note: number) => dispatch({ type: 'release', note }),
+      jumpTo: (index: number) => dispatch({ type: 'jump', index }),
       restart: () => dispatch({ type: 'restart' }),
     }),
     [state, list.length],

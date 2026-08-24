@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { deletePiece, listPieces } from '../lib/db'
 import { ACCEPTED_EXTENSIONS, importFile } from '../lib/pieces'
 import type { PieceRecord } from '../types'
@@ -10,6 +10,15 @@ export default function Library() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+
+  // The service worker redirects here when a share could not be read.
+  const shareProblem =
+    params.get('share') === 'empty'
+      ? 'That share had no file attached.'
+      : params.get('share') === 'failed'
+        ? 'Could not read the shared file.'
+        : null
 
   async function refresh() {
     setPieces(await listPieces())
@@ -54,7 +63,7 @@ export default function Library() {
         />
       </div>
 
-      {error && <div className="banner wrong">{error}</div>}
+      {(error ?? shareProblem) && <div className="banner wrong">{error ?? shareProblem}</div>}
 
       <div className="scroll">
         {pieces === null ? null : pieces.length === 0 ? (
@@ -129,6 +138,7 @@ function PieceRow({
         <span className="piece-title">{piece.title}</span>
         <span className="piece-meta">
           <span className={`badge ${piece.source}`}>{piece.source === 'midi' ? 'MIDI' : 'XML'}</span>
+          {piece.stepCount > 0 && <span className="dim">{piece.stepCount} steps</span>}
           <span className="dim">{new Date(piece.addedAt).toLocaleDateString()}</span>
         </span>
       </button>

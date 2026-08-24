@@ -2,94 +2,158 @@
 
 A phone-first play-along piano practice PWA. Plug a MIDI keyboard into an Android
 phone over USB-C, import a MusicXML or MIDI file, and play through it with the
-notation on screen and a piano diagram showing which keys come next. The app waits
-for the correct notes before advancing, so it is impossible to get lost.
+notation on screen and a piano diagram showing which keys come next. The app
+waits for the correct notes before advancing, so it is impossible to get lost,
+and reports accuracy at the end.
 
-No accounts, no backend, no built-in song library. Everything is local.
+No accounts, no backend, no built-in song library. Everything is local, and an
+imported piece plays with no network at all.
 
-The full specification is in [`keyway-spec.md`](keyway-spec.md). Read it before
-writing code — it is the source of truth for scope, architecture and build order.
+The full specification is in [`keyway-spec.md`](keyway-spec.md).
 
 ## Status
 
-Build order step **1 of 10** — the MIDI spike. Nothing is scaffolded yet, and no
-dependencies are installed. Per the spec (§4), the keyboard has to be confirmed
-working on the real phone before any app code gets written: if `requestMIDIAccess()`
-never sees the keyboard, the problem is the USB adapter and the project stops there.
+All ten steps of the build order are implemented. What is verified in a headless
+browser, and what still needs the physical device, is listed under
+[Verification](#verification).
 
-- [x] 1. MIDI spike — `spike/midi-test.html`
-- [ ] 2. Scaffold (Vite + React + TS + PWA plugin)
-- [ ] 3. Import via file picker → IndexedDB → library
-- [ ] 4. MusicXML parse + OSMD render, cursor walk to build `Step[]`
-- [ ] 5. Keyboard component
-- [ ] 6. Matching engine
-- [ ] 7. Results screen
-- [ ] 8. MIDI file path (`@tonejs/midi`)
-- [ ] 9. Share target
-- [ ] 10. Polish
-
-## Step 1: testing the MIDI spike
-
-`spike/midi-test.html` is a single standalone page with no dependencies. It
-lists the available MIDI inputs and logs every note-on and note-off with its
-MIDI note number, note name, velocity and channel.
-
-**`navigator.requestMIDIAccess()` requires a secure context**, so opening the
-file with `file://` will not work, and neither will `http://192.168.x.x` on the
-phone. You need HTTPS, or an origin the browser already treats as secure.
-
-### Option A — `adb reverse` (recommended: no tunnel, no third party, works offline)
-
-`http://localhost` counts as a secure context, so forwarding the port over USB
-sidesteps HTTPS entirely. The phone is already plugged into something — this just
-uses the cable it is on.
-
-On the laptop, from the repo root:
+## Running it
 
 ```sh
-python3 -m http.server 8080        # or: npx --yes serve -l 8080 .
-adb reverse tcp:8080 tcp:8080      # requires USB debugging on the phone
+npm install
+npm run dev          # http://localhost:5173
 ```
 
-Then on the phone open `http://localhost:8080/spike/midi-test.html` in Chrome.
+`navigator.requestMIDIAccess()` needs a secure context, so `http://localhost` is
+fine on the machine running the dev server, but testing on the phone needs HTTPS
+or a localhost-equivalent origin:
 
-Caveat: this occupies the phone's USB-C port with the laptop cable, so you cannot
-have the keyboard plugged into the same port at the same time. Use it only if you
-have a USB-C hub, otherwise use option B or C.
-
-### Option B — Cloudflare quick tunnel (real HTTPS, nothing to sign up for)
+**Cloudflare quick tunnel** — real HTTPS, nothing to sign up for, and it leaves
+the phone's USB-C port free for the keyboard:
 
 ```sh
-python3 -m http.server 8080
-cloudflared tunnel --url http://localhost:8080
+npm run build && npm run preview   # or npm run dev
+cloudflared tunnel --url http://localhost:4173
 ```
 
-It prints a `https://<random>.trycloudflare.com` URL. Open that on the phone and
-append `/spike/midi-test.html`. `ngrok http 8080` works the same way if you already
-have it. The phone's USB-C port stays free for the keyboard.
+Open the printed `https://<random>.trycloudflare.com` on the phone. `ngrok http
+4173` works the same way.
 
-### Option C — deploy it
+**`adb reverse`** — `http://localhost` counts as a secure context, so forwarding
+over USB sidesteps HTTPS entirely:
 
-Any static host over HTTPS works — Vercel, Netlify, GitHub Pages. Slowest loop to
-iterate on, but the most representative of how the finished PWA will be loaded.
+```sh
+adb reverse tcp:4173 tcp:4173
+```
 
-### What to check on the phone
+Then open `http://localhost:4173` on the phone. This occupies the phone's USB-C
+port with the laptop cable, so it only helps if you have a hub.
 
-1. The **Environment** panel shows `OK secure context` and `OK navigator.requestMIDIAccess`.
-2. Tap **Connect MIDI** and allow the permission prompt.
-3. The keyboard appears under **Inputs** with a name and manufacturer.
-4. Playing a key logs `note-on` with a MIDI number, and releasing it logs `note-off`.
-5. Play middle C — it must log as `C4` / midi `60`. Everything downstream assumes this.
-6. Unplug and replug the keyboard — a `statechange` line should appear and the
-   input list should update.
+**Deploy it** to any static host over HTTPS (Vercel, Netlify, GitHub Pages) for
+the most representative test. Install to the home screen from there.
 
-If step 3 never happens, try a different USB-C OTG adapter before debugging the code.
+The service worker is disabled in dev mode — it would serve stale builds and cost
+an hour. It only exists in real builds, which means **the share target and
+offline mode can only be tested against `npm run preview` or a deployment.**
 
-## Platform notes
+## Using it
 
-- **Android Chrome only.** Web MIDI is not available in Safari, so there is no iOS
-  support and there will not be one.
-- Chrome may re-prompt for MIDI permission every session until the PWA is installed
-  to the home screen. That is expected.
-- Web Share Target (step 9) only works once the PWA is installed — it will never
-  work in a browser tab.
+1. **Import.** Tap Import on the library screen and pick a `.musicxml`, `.xml`,
+   `.mxl`, `.mid` or `.midi` file. Once the app is installed to the home screen
+   you can also share a file to it from Chrome or Drive.
+2. **Play.** Tap a piece. The blue keys are what to play next; the cursor sits on
+   the current step. Play them and it advances. A wrong note flashes red and
+   counts against you but changes nothing else.
+3. **Finish.** The last step opens the results screen: accuracy, wrong notes,
+   elapsed time.
+
+Restart and a bar-jump slider are under the keyboard. There is no play/pause —
+the app is always waiting for input.
+
+The on-screen keys are tappable as well as MIDI-driven. That is not in the spec;
+it is there because it is the only way to exercise the matching engine without
+the keyboard plugged in, and it is what the automated checks use.
+
+### Two octaves
+
+The keyboard shows two octaves, windowed on the notes to play, and only shifts
+when they no longer fit. A step spanning more than two octaves — both hands wide
+apart — cannot be shown at once; the notes off the edge are counted in a small
+marker at the side.
+
+## Verification
+
+```sh
+npm run check                        # dev server + headless browser, 24 checks
+npm run build && npm run check:share # share target and offline, 5 checks
+```
+
+`tests/check.mjs` drives the app through a fake MIDI device (`tests/fake-midi.js`
+replaces `navigator.requestMIDIAccess`), so the parser, the matching engine and
+the results maths are all checked without hardware. Set `CHROMIUM_PATH` to use a
+Chromium already on the machine instead of one Playwright downloads.
+
+Covered: the `halfTone + 12` conversion (middle C comes out as MIDI 60),
+`<alter>` handling, chord grouping in both formats, wrong notes counting without
+advancing, partial chords not advancing, accuracy arithmetic, bar jumping, the
+MIDI-only mode, a multipart share POST exactly as Android sends it, and loading
+and playing with the network cut.
+
+**Still needs the phone**, because nothing else can prove it:
+
+- A real keyboard being enumerated over USB-C, and its note-ons arriving.
+- Whether the notation is legible and auto-scrolls sensibly on a real score
+  longer than two bars.
+- The Android share sheet actually offering Keyway (the POST handler is verified,
+  the OS-level matching is not).
+- Installing to the home screen.
+
+`spike/midi-test.html` is the standalone page from step 1. It has no
+dependencies, so it stays the fastest way to answer "is the adapter the problem":
+serve it over HTTPS, tap Connect MIDI, play a key.
+
+## Known limitations
+
+Deliberate, from the spec:
+
+- **No iOS.** Safari has no Web MIDI. This will not change.
+- **No tempo, rhythm or dynamics.** A step is one vertical slice of the score;
+  play its notes in any order and it advances. Velocity and the sustain pedal are
+  ignored.
+- **Octave-exact matching.** No enharmonic or transposition cleverness.
+- **Repeated notes need a re-press.** The held set is cleared when a step
+  completes, so the same note in consecutive steps has to be released and played
+  again. This is how a person would play it anyway.
+- **No notation for MIDI files.** MIDI carries no engraving information. Those
+  pieces show the next four steps as text instead, and say so.
+- **Nothing is kept from the results screen.** No history, no streaks.
+
+Worth knowing:
+
+- **MIDI files include every track.** Drums and bass come through as notes to
+  play, which makes a full pop arrangement unplayable. Filtering percussion is a
+  one-line change in `src/lib/midifile.ts` if that becomes annoying.
+- **Grace notes become their own steps.** Filter on `note.IsGraceNote` in
+  `src/lib/musicxml.ts` if they get irritating.
+- **A step with more than six notes** means something was parsed wrong, not that
+  the arrangement is dense.
+- **All connected MIDI inputs are used at once**, rather than making you choose
+  one. The connected input's name is shown under the keyboard.
+
+## Layout
+
+```
+src/
+  screens/     Library, Player, Import (the share-sheet landing)
+  components/  Notation (OSMD), Keyboard (SVG), Upcoming, Results, JumpControl
+  lib/
+    musicxml.ts  .mxl unzip, cursor walk to steps, pitch-mapping check
+    midifile.ts  @tonejs/midi flatten and chord grouping
+    matcher.ts   the entire matching engine
+    midi.ts      Web MIDI input
+    db.ts        IndexedDB, shared with the service worker
+  sw.ts        service worker: precache, app-shell routing, share POST handler
+samples/       test fixtures, and what they should produce
+spike/         the step 1 MIDI spike page
+scripts/       icon and fixture generators
+```

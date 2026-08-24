@@ -364,3 +364,30 @@ code {
   font-size: 17px;
   font-variant-numeric: tabular-nums;
 }
+
+/* Jump control ------------------------------------------------------------ */
+
+.jump {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.jump .label { white-space: nowrap; }
+
+.jump input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  accent-color: var(--accent);
+  background: transparent;
+}
+
+.footnote {
+  flex: none;
+  padding: 0 14px 8px;
+  font-size: 12px;
+  text-align: right;
+}
