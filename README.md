@@ -49,12 +49,34 @@ adb reverse tcp:4173 tcp:4173
 Then open `http://localhost:4173` on the phone. This occupies the phone's USB-C
 port with the laptop cable, so it only helps if you have a hub.
 
-**Deploy it** to any static host over HTTPS (Vercel, Netlify, GitHub Pages) for
-the most representative test. Install to the home screen from there.
+**Deploy it** for the most representative test — see [Deploying](#deploying).
+Install to the home screen from there.
 
 The service worker is disabled in dev mode — it would serve stale builds and cost
 an hour. It only exists in real builds, which means **the share target and
 offline mode can only be tested against `npm run preview` or a deployment.**
+
+## Deploying
+
+`vercel.json` is set up, so importing the repo at
+[vercel.com/new](https://vercel.com/new) is the whole job: framework preset Vite,
+build `npm run build`, output `dist`. Every push to `main` then deploys itself.
+
+Three things in that config are load-bearing:
+
+- **The SPA rewrite.** `/play/:id` and `/import` are client-side routes with
+  nothing behind them on the server. Without the rewrite to `index.html`, a cold
+  visit to either one is a 404 — Vercel's Vite preset does not add this. Static
+  files still win, because rewrites are only consulted after the filesystem.
+- **`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`.** Playwright is a devDependency and
+  Vercel installs devDependencies, so without this every build downloads a
+  browser it will never run.
+- **No long cache on `sw.js` or the manifest.** A cached service worker is how
+  you end up staring at a build from last week.
+
+The deployed URL is HTTPS, which is what Web MIDI needs, and installing from it
+is what makes the share target work at all. Any other static host is fine too;
+it needs the same SPA fallback.
 
 ## Using it
 
@@ -90,7 +112,7 @@ piece resizes twice from beginning to end.
 
 ```sh
 npm run check                        # dev server + headless browser, 40 checks
-npm run build && npm run check:share # share target and offline, 5 checks
+npm run build && npm run check:share # share target and offline, 6 checks
 ```
 
 `tests/check.mjs` drives the app through a fake MIDI device (`tests/fake-midi.js`

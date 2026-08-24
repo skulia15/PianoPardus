@@ -87,6 +87,18 @@ async function main() {
     await page.locator('.piece-open').first().click()
     await page.waitForFunction(() => document.querySelector('.readout-notes')?.textContent !== '…', null, { timeout: 20_000 })
     check('an imported piece plays offline', await page.locator('.readout-notes').textContent(), 'C4')
+
+    // --- Cold deep link ---------------------------------------------------
+    // /play/:id and /import are client-side routes with nothing behind them on
+    // the server, so a host that does not fall back to index.html serves a 404.
+    // vercel.json carries that rewrite; this checks the app itself copes with
+    // being entered at a deep URL rather than routed to from the library.
+    await context.setOffline(false)
+    const deepLink = page.url()
+    await page.goto(BASE)
+    await page.goto(deepLink, { waitUntil: 'domcontentloaded' })
+    await page.waitForFunction(() => document.querySelector('.readout-notes')?.textContent !== '…', null, { timeout: 20_000 })
+    check('a piece opens from a cold deep link', await page.locator('.readout-notes').textContent(), 'C4')
   } finally {
     await browser.close()
     server.kill('SIGTERM')
