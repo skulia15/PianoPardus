@@ -1,4 +1,4 @@
-# Keyway — Play-Along Piano Practice PWA
+# PianoPardus — Play-Along Piano Practice PWA
 
 **Handoff spec, v1.** Working title; rename freely.
 
@@ -111,7 +111,7 @@ Three screens. Bottom nav is unnecessary — a back arrow is enough.
 - List of imported pieces: title, format badge (`XML` / `MIDI`), step count, date added.
 - Tap to open the player.
 - Long-press or swipe to delete.
-- Empty state explains how to import: "Find a `.musicxml` or `.mid` file in your browser and share it to Keyway."
+- Empty state explains how to import: "Find a `.musicxml` or `.mid` file in your browser and share it to PianoPardus."
 - A file-picker button as a fallback import path (`<input type="file">`), because share target only works once installed.
 
 ### 7.2 Player

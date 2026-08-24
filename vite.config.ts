@@ -20,8 +20,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
       },
       manifest: {
-        name: 'Keyway',
-        short_name: 'Keyway',
+        name: 'PianoPardus',
+        short_name: 'PianoPardus',
         description: 'Play-along piano practice with a MIDI keyboard.',
         start_url: '/',
         scope: '/',

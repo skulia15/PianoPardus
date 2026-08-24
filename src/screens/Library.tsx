@@ -51,7 +51,7 @@ export default function Library() {
   return (
     <div className="screen">
       <div className="header">
-        <h1>Keyway</h1>
+        <h1>PianoPardus</h1>
         <button onClick={() => fileInput.current?.click()}>Import</button>
         <input
           ref={fileInput}
@@ -70,7 +70,7 @@ export default function Library() {
           <div className="empty">
             <strong>No pieces yet</strong>
             Find a <code>.musicxml</code> or <code>.mid</code> file in your browser and share it
-            to Keyway, or use Import above.
+            to PianoPardus, or use Import above.
           </div>
         ) : (
           <ul className="piece-list">

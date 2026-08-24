@@ -3,6 +3,9 @@ import type { InboxRecord, PieceRecord } from '../types'
 
 // This module is imported by the service worker as well as the app, so it must
 // not touch anything that only exists on window.
+//
+// The database is still called 'keyway', the app's original name. Renaming it
+// would orphan anything already imported on a device, for no gain.
 
 interface KeywayDB extends DBSchema {
   pieces: { key: string; value: PieceRecord; indexes: { addedAt: number } }

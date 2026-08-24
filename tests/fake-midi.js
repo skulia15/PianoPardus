@@ -5,7 +5,7 @@
     constructor() {
       this.id = 'fake-input-1'
       this.name = 'Fake MIDI Keyboard'
-      this.manufacturer = 'Keyway tests'
+      this.manufacturer = 'PianoPardus tests'
       this.type = 'input'
       this.state = 'connected'
       this.connection = 'open'

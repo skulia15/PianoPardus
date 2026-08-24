@@ -1,4 +1,4 @@
-# Keyway
+# PianoPardus
 
 A phone-first play-along piano practice PWA. Plug a MIDI keyboard into an Android
 phone over USB-C, import a MusicXML or MIDI file, and play through it with the
@@ -9,7 +9,7 @@ and reports accuracy at the end.
 No accounts, no backend, no built-in song library. Everything is local, and an
 imported piece plays with no network at all.
 
-The full specification is in [`keyway-spec.md`](keyway-spec.md).
+The full specification is in [`pianopardus-spec.md`](pianopardus-spec.md).
 
 ## Status
 
@@ -104,7 +104,7 @@ and playing with the network cut.
 - A real keyboard being enumerated over USB-C, and its note-ons arriving.
 - Whether the notation is legible and auto-scrolls sensibly on a real score
   longer than two bars.
-- The Android share sheet actually offering Keyway (the POST handler is verified,
+- The Android share sheet actually offering PianoPardus (the POST handler is verified,
   the OS-level matching is not).
 - Installing to the home screen.
 
