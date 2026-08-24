@@ -1,0 +1,128 @@
+:root {
+  --bg: #0e0f13;
+  --panel: #171a21;
+  --panel-2: #1e2229;
+  --line: #262b36;
+  --text: #e7e9ee;
+  --dim: #8b93a5;
+  --accent: #7c8cff;
+  --expected: #4c7dff;
+  --correct: #4ade80;
+  --wrong: #f87171;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header ------------------------------------------------------------------ */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.header .meta {
+  color: var(--dim);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Buttons ----------------------------------------------------------------- */
+
+button {
+  font: inherit;
+  font-weight: 600;
+  color: #0b0d12;
+  background: var(--accent);
+  border: 0;
+  border-radius: 10px;
+  padding: 13px 18px;
+  min-height: 48px;
+  cursor: pointer;
+}
+
+button:disabled { opacity: 0.5; }
+
+button.secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
+button.icon {
+  background: transparent;
+  color: var(--text);
+  border: 0;
+  padding: 8px;
+  min-height: 40px;
+  min-width: 40px;
+  font-size: 20px;
+  line-height: 1;
+}
+
+button.danger { background: var(--wrong); }
+
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Generic ----------------------------------------------------------------- */
+
+.pad { padding: 14px; }
+
+.scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+.empty {
+  margin: auto;
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--dim);
+  max-width: 30rem;
+}
+
+.empty strong { display: block; color: var(--text); font-size: 18px; margin-bottom: 8px; }
+
+.label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.dim { color: var(--dim); }
