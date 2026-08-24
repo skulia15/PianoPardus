@@ -189,6 +189,27 @@ async function main() {
     await page.waitForTimeout(150)
     check('skip back at the very start stays put', await readout(page), 'C4')
 
+    // --- Skipping a step --------------------------------------------------
+    // The bar slider cannot nudge by one: a bar is many steps. This is the way
+    // past a chord too wide to hold at both ends.
+    const skipButton = page.locator('button[aria-label="Skip this step"]')
+
+    await skipButton.click()
+    await checkReadout(page, 'skip advances exactly one step', 'D4')
+    check('skipping is not counted as a wrong note', await page.locator('.readout-errors').textContent(), '')
+
+    for (let remaining = 4; remaining > 0; remaining--) await skipButton.click()
+    await page.locator('.accuracy').waitFor({ timeout: 5_000 })
+    check('skipping past the last step finishes the piece', await page.locator('.accuracy').textContent(), '100%')
+    check(
+      'and the skipped steps are reported on their own',
+      await page.locator('.results-stats div', { hasText: 'skipped' }).locator('dd').textContent(),
+      '5',
+    )
+
+    await page.getByText('Play again').click()
+    await checkReadout(page, 'play again starts over after skipping', 'C4')
+
     // --- Playback ---------------------------------------------------------
     await setSound(page, 'keyboard')
     await page.evaluate(() => window.__midi.clearSent())

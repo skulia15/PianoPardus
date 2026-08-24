@@ -205,6 +205,7 @@ export default function Player() {
           title={record?.title ?? ''}
           stepCount={steps.length}
           errors={matcher.errors}
+          skipped={matcher.skipped}
           elapsedMs={matcher.elapsedMs}
           onPlayAgain={matcher.restart}
           onBackToLibrary={() => navigate('/')}
@@ -309,6 +310,14 @@ export default function Player() {
           aria-label={playback.playing ? 'Stop playing' : 'Play the piece'}
         >
           {playback.playing ? '⏸' : '▶'}
+        </button>
+        <button
+          className="icon"
+          onClick={matcher.skip}
+          disabled={!steps || steps.length === 0}
+          aria-label="Skip this step"
+        >
+          ⏭
         </button>
         <button className="speed" onClick={cycleSpeed} aria-label="Playback speed">
           {speed}×

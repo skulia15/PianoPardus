@@ -236,10 +236,23 @@ hand essentially without exception.
 
 ## Playback
 
-**▶** plays the piece to you instead of waiting for you, and **⏮** skips back to
-the start of the bar you are in — or to the previous bar if you are already at
-its start, which is what "again" usually means. The speed button cycles
+**▶** plays the piece to you instead of waiting for you. The speed button cycles
 1× → 0.25× → 0.5× → 0.75×.
+
+**⏮** skips back to the start of the bar you are in — or to the previous bar if
+you are already at its start, which is what "again" usually means. **⏭** goes
+forward exactly one step, which is the way past something you cannot play: a
+chord too wide to hold at both ends, most often. The two are deliberately not
+symmetrical, because they answer different questions — "let me try that phrase
+again" and "I cannot play this one".
+
+The bar slider cannot do the second job. A bar is many steps, so on a
+nine-hundred-step piece it moves in jumps of a dozen and no amount of accuracy
+gets you to the next step.
+
+Skipped steps are counted and shown on the results screen beside the accuracy,
+not folded into it: a step you chose to pass over is not a wrong note, but it is
+not a played one either.
 
 Playback follows the score's own rhythm, not a metronomic tick: steps carry the
 time they sound, taken from the enrolled cursor timestamp and the tempo for
@@ -318,7 +331,7 @@ public.
 ## Verification
 
 ```sh
-npm run check                        # dev server + headless browser, 86 checks
+npm run check                        # dev server + headless browser, 91 checks
 npm run build && npm run check:share # share target and offline, 6 checks
 ```
 
@@ -350,7 +363,8 @@ multipart share POST exactly as Android sends it, a bundled .mxl unzipping into
 notation, the screen wake lock surviving the page being hidden, a file
 named after its instrument falling back to its filename, chord naming across
 inversions, doublings and non-chords, a piece being shifted and folded onto a
-shorter keyboard, the phone's voice producing sound at the right pitch, and loading and playing
+shorter keyboard, the phone's voice producing sound at the right pitch, skipping a
+single step and it being reported separately from errors, and loading and playing
 with the network cut.
 
 **Still needs the phone**, because nothing else can prove it:
@@ -376,6 +390,9 @@ Deliberate, from the spec:
   sustain pedal are ignored. Tempo exists only for playback, never for judging
   you.
 - **Octave-exact matching.** No enharmonic or transposition cleverness.
+- **Every note of a step must be held at once.** A chord spanning more than a
+  hand's reach at each end cannot be completed without a sustain pedal, which is
+  not read. **⏭** is the way past one.
 - **Repeated notes need a re-press.** The held set is cleared when a step
   completes, so the same note in consecutive steps has to be released and played
   again. This is how a person would play it anyway.

@@ -2,6 +2,7 @@ export default function Results({
   title,
   stepCount,
   errors,
+  skipped,
   elapsedMs,
   onPlayAgain,
   onBackToLibrary,
@@ -9,10 +10,14 @@ export default function Results({
   title: string
   stepCount: number
   errors: number
+  skipped: number
   elapsedMs: number
   onPlayAgain: () => void
   onBackToLibrary: () => void
 }) {
+  // Accuracy is steps / (steps + errors), as specified. Skipped steps are
+  // reported next to it rather than folded into it: a step you chose to pass
+  // over is not a wrong note, but it is not a played one either.
   const accuracy = Math.round((stepCount / (stepCount + errors)) * 100)
 
   return (
@@ -31,6 +36,12 @@ export default function Results({
             <dt className="label">wrong notes</dt>
             <dd>{errors}</dd>
           </div>
+          {skipped > 0 && (
+            <div>
+              <dt className="label">skipped</dt>
+              <dd>{skipped}</dd>
+            </div>
+          )}
           <div>
             <dt className="label">time</dt>
             <dd>{formatDuration(elapsedMs)}</dd>
