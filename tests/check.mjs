@@ -9,6 +9,7 @@ const PORT = 5199
 const BASE = `http://localhost:${PORT}`
 const here = (path) => fileURLToPath(new URL(path, import.meta.url))
 const FAKE_MIDI = readFileSync(here('./fake-midi.js'), 'utf8')
+const FAKE_WAKE_LOCK = readFileSync(here('./fake-wakelock.js'), 'utf8')
 
 let failures = 0
 
@@ -76,6 +77,7 @@ async function main() {
   // Roughly a Galaxy S24 viewport.
   const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
   await page.addInitScript(FAKE_MIDI)
+  await page.addInitScript(FAKE_WAKE_LOCK)
   page.on('pageerror', (error) => {
     failures++
     console.log(`FAIL  uncaught page error: ${error.message}`)
@@ -315,6 +317,28 @@ async function main() {
     await page.waitForFunction(() => document.querySelector('.readout-notes')?.textContent !== '…', null, { timeout: 30_000 })
     check('a bundled .mxl unzips and renders as notation', await page.locator('.notation svg').count(), 1)
     check('and it has bars to jump between', (await page.locator('.header .meta').textContent()).includes('bar 1'), true)
+
+    // --- Screen wake lock -------------------------------------------------
+    // Practising means nothing touches the phone, so the screen times out mid
+    // piece unless the lock is held — and held again after every interruption.
+    const lockState = () => page.evaluate(() => ({ active: window.__wakeLock.active, requests: window.__wakeLock.requests }))
+
+    await page.waitForFunction(() => window.__wakeLock.active === 1, null, { timeout: 5_000 }).catch(() => {})
+    check('the player holds a screen wake lock', (await lockState()).active, 1)
+
+    const before = (await lockState()).requests
+    await page.evaluate(() => window.__wakeLock.hide())
+    check('the browser dropping it while hidden is not fought', (await lockState()).active, 0)
+
+    await page.evaluate(() => window.__wakeLock.show())
+    await page.waitForFunction(() => window.__wakeLock.active === 1, null, { timeout: 5_000 }).catch(() => {})
+    check('and it is taken again when the page comes back', (await lockState()).active, 1)
+    check('which needed a fresh request', (await lockState()).requests > before, true)
+
+    await page.locator('.header button[aria-label="Back to library"]').click()
+    await page.locator('.starter').waitFor()
+    await page.waitForFunction(() => window.__wakeLock.active === 0, null, { timeout: 5_000 }).catch(() => {})
+    check('and released again on the way out of the player', (await lockState()).active, 0)
   } finally {
     await browser.close()
     server.kill('SIGTERM')

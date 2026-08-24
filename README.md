@@ -117,6 +117,15 @@ it needs the same SPA fallback.
 Under the keyboard: skip back, play, speed, and a bar-jump slider, with Restart
 below them.
 
+**The screen stays awake while a piece is open.** Practising means both hands on
+the keyboard and nothing touching the phone, which is exactly what Android's
+screen timeout is waiting for. The player takes a screen wake lock for as long as
+it is open — including while it sits waiting for you to find the next chord, not
+just while it is playing itself. The browser drops that lock every time the page
+stops being visible and never restores it, so it is taken again on every return;
+that is the part that is easy to get wrong and it has a test. Leaving the player
+releases it.
+
 An engraved MIDI piece also gets a **Roll** button, which swaps the notation for
 a piano roll: time running upwards, pitch across, on exactly the keyboard's
 x axis, so a note falls onto the key it wants. Use it when the engraving comes
@@ -233,7 +242,7 @@ public.
 ## Verification
 
 ```sh
-npm run check                        # dev server + headless browser, 64 checks
+npm run check                        # dev server + headless browser, 69 checks
 npm run build && npm run check:share # share target and offline, 6 checks
 ```
 
@@ -262,7 +271,8 @@ keyboard widening for a four-octave step, a MIDI file being engraved and
 switched to the roll and back, playback advancing at the score's own tempo and
 sounding notes on a connected instrument, skip back landing on bar starts, a
 multipart share POST exactly as Android sends it, a bundled .mxl unzipping into
-notation, and loading and playing with the network cut.
+notation, the screen wake lock surviving the page being hidden, and loading and
+playing with the network cut.
 
 **Still needs the phone**, because nothing else can prove it:
 
@@ -319,6 +329,7 @@ src/
     midifile.ts  @tonejs/midi flatten and chord grouping
     notation.ts  engraving MIDI into MusicXML via webmscore
     playback.ts  the drift-free step scheduler and the speed control
+    wakelock.ts  keeping the screen on while the player is open
     steps.ts     where a skip back lands
     keys.ts      key geometry and the window, shared by keyboard and roll
     matcher.ts   the entire matching engine

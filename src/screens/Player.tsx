@@ -14,6 +14,7 @@ import { checkPitchMapping, readMusicXmlText } from '../lib/musicxml'
 import { noteName } from '../lib/notes'
 import { gapMs, SPEEDS, usePlayback } from '../lib/playback'
 import { skipBackIndex } from '../lib/steps'
+import { useWakeLock } from '../lib/wakelock'
 import type { PieceRecord, Step } from '../types'
 
 export default function Player() {
@@ -59,6 +60,10 @@ export default function Player() {
   playingRef.current = playback.playing
 
   useEffect(() => () => midi.silence(), [midi.silence])
+
+  // Held for as long as the player is open, not just while it is playing itself:
+  // waiting for you to find the next chord is exactly when the screen goes dark.
+  useWakeLock(true)
 
   useEffect(() => {
     let cancelled = false
