@@ -1,5 +1,6 @@
 import { unzipSync } from 'fflate'
 import type { OpenSheetMusicDisplay } from 'opensheetmusicdisplay'
+import { usableTitle } from './titles'
 import type { Step } from '../types'
 
 const STEP_SEMITONES: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }
@@ -44,13 +45,17 @@ function decode(bytes: Uint8Array): string {
 
 export function titleFromMusicXml(xml: string): string | null {
   const doc = new DOMParser().parseFromString(xml, 'application/xml')
+
+  // Never <part-name>: that is the instrument, and a score whose title element
+  // is empty will happily hand it over if asked.
   const candidates = [
     doc.querySelector('work > work-title')?.textContent,
     doc.querySelector('movement-title')?.textContent,
     doc.querySelector('credit > credit-words')?.textContent,
   ]
+
   for (const candidate of candidates) {
-    const title = candidate?.trim()
+    const title = usableTitle(candidate)
     if (title) return title
   }
   return null

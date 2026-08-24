@@ -35,3 +35,20 @@ wideTrack.addNote({ midi: 60, time: 1.5, duration: 0.5 })
 
 writeFileSync(new URL('../samples/wide-test.mid', import.meta.url), Buffer.from(wide.toArray()))
 console.log('wrote samples/wide-test.mid')
+
+// A file that names itself after its instrument, which is what most MIDI files
+// downloaded from the web actually do. The title has to come from the filename
+// here, not from the file.
+const instrument = new Midi()
+instrument.header.name = 'Acoustic Grand Piano'
+const instrumentTrack = instrument.addTrack()
+instrumentTrack.name = 'Acoustic Grand Piano'
+;[60, 62].forEach((note, index) => {
+  instrumentTrack.addNote({ midi: note, time: index * 0.5, duration: 0.4 })
+})
+
+writeFileSync(
+  new URL('../samples/a-fine-test-piece.mid', import.meta.url),
+  Buffer.from(instrument.toArray()),
+)
+console.log('wrote samples/a-fine-test-piece.mid')

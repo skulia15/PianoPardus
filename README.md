@@ -170,6 +170,21 @@ library precisely to avoid the licensing problem, which makes this the third
 deliberate departure, and the reason it is limited to material that is genuinely
 free.
 
+## What a piece gets called
+
+A file's embedded title is used when it has one, and its filename otherwise.
+The catch is that the fields holding that title are routinely filled with the
+name of the *instrument* — a MIDI file's title comes from track 0's name event,
+and exporters cheerfully name that track "Piano" or "Nylon Guitar", so importing
+The Rains of Castamere would land a piece called "Nylon Guitar" in the library.
+
+So a candidate title is rejected when every word in it is a part word — an
+instrument, a hand, a staff, or a placeholder like "Untitled" or "Track 1" — and
+the filename is used instead. Every *word*, so that "Piano Man" and "Piano
+Sonata No. 14" come through untouched: one real word is enough to make a title.
+Track names are never consulted at all, since they are the instrument or the
+hand essentially without exception.
+
 ## Playback
 
 **▶** plays the piece to you instead of waiting for you, and **⏮** skips back to
@@ -242,7 +257,7 @@ public.
 ## Verification
 
 ```sh
-npm run check                        # dev server + headless browser, 69 checks
+npm run check                        # dev server + headless browser, 72 checks
 npm run build && npm run check:share # share target and offline, 6 checks
 ```
 
@@ -271,8 +286,9 @@ keyboard widening for a four-octave step, a MIDI file being engraved and
 switched to the roll and back, playback advancing at the score's own tempo and
 sounding notes on a connected instrument, skip back landing on bar starts, a
 multipart share POST exactly as Android sends it, a bundled .mxl unzipping into
-notation, the screen wake lock surviving the page being hidden, and loading and
-playing with the network cut.
+notation, the screen wake lock surviving the page being hidden, a file
+named after its instrument falling back to its filename, and loading and playing
+with the network cut.
 
 **Still needs the phone**, because nothing else can prove it:
 
@@ -329,6 +345,7 @@ src/
     midifile.ts  @tonejs/midi flatten and chord grouping
     notation.ts  engraving MIDI into MusicXML via webmscore
     playback.ts  the drift-free step scheduler and the speed control
+    titles.ts    telling a piece's name from its instrument's
     wakelock.ts  keeping the screen on while the player is open
     steps.ts     where a skip back lands
     keys.ts      key geometry and the window, shared by keyboard and roll

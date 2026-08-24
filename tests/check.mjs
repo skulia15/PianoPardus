@@ -339,6 +339,27 @@ async function main() {
     await page.locator('.starter').waitFor()
     await page.waitForFunction(() => window.__wakeLock.active === 0, null, { timeout: 5_000 }).catch(() => {})
     check('and released again on the way out of the player', (await lockState()).active, 0)
+
+    // --- Titles -----------------------------------------------------------
+    // Vite serves the module, so the predicate can be exercised directly.
+    const titles = await page.evaluate(async () => {
+      const { looksLikePartName } = await import('/src/lib/titles.ts')
+      const parts = ['Piano', 'Acoustic Grand Piano', 'Nylon Guitar', 'Right Hand', 'Track 1', 'Untitled', 'Voice', 'Staff 2', '', '   ']
+      const real = ['The Rains of Castamere', 'Piano Man', 'Piano Sonata No. 14', 'Clair de Lune', 'Maple Leaf Rag', 'Gymnopédie No. 1']
+      return {
+        missed: parts.filter((name) => !looksLikePartName(name)),
+        overreach: real.filter((name) => looksLikePartName(name)),
+      }
+    })
+    check('instrument and part names are recognised as such', titles.missed, [])
+    check('real titles containing an instrument word survive', titles.overreach, [])
+
+    await importFixture(page, 'a-fine-test-piece.mid')
+    check(
+      'a file named after its instrument falls back to the filename',
+      (await page.locator('.piece-title').first().textContent()).trim(),
+      'a fine test piece',
+    )
   } finally {
     await browser.close()
     server.kill('SIGTERM')

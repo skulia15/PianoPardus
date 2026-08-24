@@ -1,4 +1,5 @@
 import { Midi } from '@tonejs/midi'
+import { usableTitle } from './titles'
 import type { Step } from '../types'
 
 /** Notes starting within this window of each other count as one chord. */
@@ -32,8 +33,13 @@ export async function parseMidiSteps(blob: Blob): Promise<Step[]> {
   return steps
 }
 
+/**
+ * Only the file's own name event, and only if it names a piece rather than a
+ * part. Track names are never considered: they are the instrument or the hand
+ * essentially without exception, and @tonejs/midi already reads header.name
+ * from track 0's name event, so even that needs checking.
+ */
 export async function titleFromMidi(blob: Blob): Promise<string | null> {
   const midi = new Midi(await blob.arrayBuffer())
-  const name = midi.header.name?.trim() || midi.tracks.find((track) => track.name?.trim())?.name
-  return name?.trim() || null
+  return usableTitle(midi.header.name)
 }

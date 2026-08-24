@@ -2,6 +2,7 @@ import { putPiece } from './db'
 import { titleFromMidi } from './midifile'
 import { midiToMusicXml } from './notation'
 import { composerFromMusicXml, readMusicXmlText, titleFromMusicXml } from './musicxml'
+import { titleFromFileName } from './titles'
 import type { PieceRecord, PieceSource } from '../types'
 
 const MUSICXML = ['.musicxml', '.xml', '.mxl']
@@ -12,11 +13,6 @@ export function sourceForFileName(fileName: string): PieceSource | null {
   if (MUSICXML.some((ext) => lower.endsWith(ext))) return 'musicxml'
   if (MIDI.some((ext) => lower.endsWith(ext))) return 'midi'
   return null
-}
-
-export function titleFromFileName(fileName: string): string {
-  const withoutExtension = fileName.replace(/\.[^.]+$/, '')
-  return withoutExtension.replace(/[_-]+/g, ' ').trim() || fileName
 }
 
 export const ACCEPTED_EXTENSIONS = [...MUSICXML, ...MIDI].join(',')
