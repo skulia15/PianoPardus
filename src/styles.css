@@ -304,3 +304,37 @@ code {
 }
 
 .controls button { min-height: 44px; }
+
+/* Results ----------------------------------------------------------------- */
+
+.results { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+.results-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 24px;
+  text-align: center;
+}
+
+.accuracy {
+  font-size: 72px;
+  font-weight: 700;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  color: var(--correct);
+}
+
+.results-stats {
+  display: flex;
+  gap: 28px;
+  margin: 28px 0 0;
+  padding: 0;
+}
+
+.results-stats div { display: flex; flex-direction: column; gap: 4px; }
+.results-stats dt { margin: 0; }
+.results-stats dd { margin: 0; font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; }

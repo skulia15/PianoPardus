@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Keyboard, { windowStartFor } from '../components/Keyboard'
 import Notation from '../components/Notation'
+import Results from '../components/Results'
 import { getPiece, putPiece } from '../lib/db'
 import { useMatcher } from '../lib/matcher'
 import { midiStatusMessage, useMidiInput } from '../lib/midi'
@@ -69,6 +70,27 @@ export default function Player() {
   }, [step])
 
   const midiMessage = midiStatusMessage(midi.status)
+
+  if (steps && matcher.done) {
+    return (
+      <div className="screen">
+        <div className="header">
+          <button className="icon" onClick={() => navigate('/')} aria-label="Back to library">
+            ←
+          </button>
+          <h1>Finished</h1>
+        </div>
+        <Results
+          title={record?.title ?? ''}
+          stepCount={steps.length}
+          errors={matcher.errors}
+          elapsedMs={matcher.elapsedMs}
+          onPlayAgain={matcher.restart}
+          onBackToLibrary={() => navigate('/')}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="screen">

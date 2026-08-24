@@ -116,7 +116,18 @@ async function main() {
     await page.evaluate(() => window.__midi.noteOn(64))
     check('a partial chord does not advance', await readout(page), 'C4 · E4 · G4')
     await page.evaluate(() => window.__midi.noteOn(67))
-    await checkReadout(page, 'completing the chord finishes the piece', 'done')
+
+    // --- Results ----------------------------------------------------------
+    await page.locator('.accuracy').waitFor({ timeout: 3000 })
+    check('accuracy is steps / (steps + errors)', await page.locator('.accuracy').textContent(), '83%')
+    check('errors are reported', await page.locator('.results-stats dd').nth(1).textContent(), '1')
+    check('step count is reported', await page.locator('.results-stats dd').nth(0).textContent(), '5')
+
+    if (process.env.SCREENSHOT) await page.screenshot({ path: process.env.SCREENSHOT.replace('.png', '-results.png') })
+
+    await page.getByText('Play again').click()
+    await checkReadout(page, 'play again starts over', 'C4')
+    check('play again clears the error count', await page.locator('.readout-errors').textContent(), '')
   } finally {
     await browser.close()
     server.kill('SIGTERM')
