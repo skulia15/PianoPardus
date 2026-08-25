@@ -30,10 +30,11 @@ const PART_WORDS = new Set([
   'right', 'left', 'hand', 'hands', 'rh', 'lh', 'treble', 'clef', 'staff',
   'stave', 'part', 'parts', 'track', 'upper', 'lower', 'top', 'bottom',
   'melody', 'accompaniment', 'channel',
-  // placeholders
+  // placeholders, and the bookkeeping tracks exporters leave behind
   'untitled', 'unnamed', 'new', 'midi', 'file', 'song', 'music', 'score',
   'sequence', 'conductor', 'tempo', 'master', 'main', 'default', 'instrument',
-  'no', 'number', 'nr',
+  'no', 'number', 'nr', 'control', 'meta', 'click', 'metronome', 'marker',
+  'empty', 'blank', 'untitled1',
 ])
 
 /**

@@ -394,7 +394,7 @@ async function main() {
     // Vite serves the module, so the predicate can be exercised directly.
     const titles = await page.evaluate(async () => {
       const { looksLikePartName } = await import('/src/lib/titles.ts')
-      const parts = ['Piano', 'Acoustic Grand Piano', 'Nylon Guitar', 'Right Hand', 'Track 1', 'Untitled', 'Voice', 'Staff 2', '', '   ']
+      const parts = ['Piano', 'Acoustic Grand Piano', 'Nylon Guitar', 'Right Hand', 'Track 1', 'Untitled', 'Voice', 'Staff 2', 'control track', 'Meta', '', '   ']
       const real = ['The Rains of Castamere', 'Piano Man', 'Piano Sonata No. 14', 'Clair de Lune', 'Maple Leaf Rag', 'Gymnopédie No. 1']
       return {
         missed: parts.filter((name) => !looksLikePartName(name)),
