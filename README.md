@@ -157,6 +157,34 @@ the keyboard on a fifth of all steps, and a keyboard that stays where you learne
 it reads better than one that is always the ideal width. Growing only, the same
 piece resizes twice from beginning to end.
 
+## Getting a score in from a photo
+
+`.claude/skills/sheet-music-to-midi/` holds the procedure for turning a photo or
+screenshot of sheet music into something importable, and the tools it needs.
+
+The short version: **optical recognition is not good enough to hand over**.
+Measured here with `oemer` — a perfect digital render came out with 94.5% of the
+notes but only 55% of them in the right order; a phone screenshot of a printed
+page lost the key signature and collapsed sixteen bars into three. A missed key
+signature makes every accidental wrong, and the player waits for the exact note,
+so a wrong pitch becomes a step that can never be passed.
+
+What works instead is recognising the piece and finding an edition that already
+exists in machine-readable form — Mutopia, CPDL, the LilyPond public-domain
+songbook — then proving it matches the page before believing it:
+
+```sh
+node .claude/skills/sheet-music-to-midi/verify.cjs <candidate> \
+  --key -1 --time 6/8 --bars 16 --melody "A4 A4 A4 A#4 A#4 C5"
+```
+
+It reads MIDI, MusicXML and `.mxl`, walks the actual note timing so chords group
+properly, and exits non-zero when the candidate disagrees with the page. A
+candidate that fails is a different setting, not a near miss.
+
+For music still in copyright no free edition will exist, and the answer is
+[Audiveris](https://audiveris.com/) on a laptop rather than a bad scan.
+
 ## Starter pieces
 
 Eight pieces ship with the app so it is not empty on first run. Public-domain
