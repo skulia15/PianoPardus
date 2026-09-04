@@ -8,3 +8,4 @@ dev-dist/
 /public/webmscore/
 /keyway.bundle
 tsconfig.tsbuildinfo
+__pycache__/
